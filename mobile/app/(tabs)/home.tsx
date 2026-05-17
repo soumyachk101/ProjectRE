@@ -51,6 +51,37 @@ export default function HomeScreen() {
     refetchInterval: 30000,
   });
 
+  const pulseAnim = useSharedValue(1);
+  const glowAnim = useSharedValue(1);
+
+  useEffect(() => {
+    pulseAnim.value = withRepeat(
+      withSequence(
+        withTiming(1.5, { duration: 800 }),
+        withTiming(1, { duration: 800 })
+      ),
+      -1,
+      true
+    );
+
+    glowAnim.value = withRepeat(
+      withSequence(
+        withTiming(1.02, { duration: 1500 }),
+        withTiming(1, { duration: 1500 })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const liveDotStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseAnim.value }],
+  }));
+
+  const tripBtnStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: glowAnim.value }],
+  }));
+
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -101,6 +132,13 @@ export default function HomeScreen() {
         ))}
       </MapView>
 
+      {/* Top Gradient Overlay for seamless blend */}
+      <LinearGradient
+        colors={['rgba(255,255,255,0.9)', 'transparent']}
+        style={styles.topGradient}
+        pointerEvents="none"
+      />
+
       {/* Glassmorphism header */}
       <View style={styles.headerWrap}>
         <BlurView intensity={80} tint="light" style={styles.headerBlur}>
@@ -112,7 +150,7 @@ export default function HomeScreen() {
               </Text>
             </View>
             <View style={styles.liveDot}>
-              <View style={styles.liveDotInner} />
+              <Animated.View style={[styles.liveDotInner, liveDotStyle]} />
             </View>
           </View>
         </BlurView>
@@ -179,16 +217,18 @@ export default function HomeScreen() {
             onPress={() => router.push('/trip/active')}
             activeOpacity={0.85}
           >
-            <LinearGradient
-              colors={gradients.primaryBright as any}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[styles.tripBtn, shadows.lg]}
-            >
-              <MaterialCommunityIcons name="navigation-variant" size={22} color="#fff" />
-              <Text style={styles.tripBtnText}>Start Trip</Text>
-              <MaterialCommunityIcons name="arrow-right" size={20} color="rgba(255,255,255,0.7)" />
-            </LinearGradient>
+            <Animated.View style={tripBtnStyle}>
+              <LinearGradient
+                colors={gradients.primaryBright as any}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.tripBtn, shadows.lg]}
+              >
+                <MaterialCommunityIcons name="navigation-variant" size={22} color="#fff" />
+                <Text style={styles.tripBtnText}>Start Trip</Text>
+                <MaterialCommunityIcons name="arrow-right" size={20} color="rgba(255,255,255,0.7)" />
+              </LinearGradient>
+            </Animated.View>
           </TouchableOpacity>
         </View>
       )}
@@ -214,6 +254,13 @@ const darkMapStyle = [
 const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { flex: 1 },
+  topGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 160,
+  },
   headerWrap: {
     position: 'absolute',
     top: 50,

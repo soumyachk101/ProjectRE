@@ -19,7 +19,7 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
-        <StatusBar style="light" backgroundColor="transparent" translucent />
+        <StatusBar style="dark" backgroundColor="transparent" translucent />
         <Stack
           screenOptions={{
             headerShown: false,

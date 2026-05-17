@@ -8,7 +8,7 @@ import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { api } from '../../services/api';
 import { SensorEngine, VehicleType, Placement } from '../../services/SensorEngine';
 import { useTripStore } from '../../store/trip';
@@ -48,6 +48,22 @@ export default function ActiveTripScreen() {
     const sec = s % 60;
     return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
   };
+
+  const pulseAnim = useSharedValue(1);
+  useEffect(() => {
+    pulseAnim.value = withRepeat(
+      withSequence(
+        withTiming(1.05, { duration: 2000 }),
+        withTiming(1, { duration: 2000 })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseAnim.value }],
+  }));
 
   const pocBufferRef = useRef<PocCandidate[]>([]);
 
@@ -135,12 +151,14 @@ export default function ActiveTripScreen() {
           style={styles.startGradient}
         >
           <Animated.View entering={FadeInDown.duration(500)} style={styles.startContent}>
-            <LinearGradient
-              colors={gradients.primaryBright as any}
-              style={styles.startIconCircle}
-            >
-              <MaterialCommunityIcons name="navigation-variant" size={48} color="#fff" />
-            </LinearGradient>
+            <Animated.View style={iconStyle}>
+              <LinearGradient
+                colors={gradients.primaryBright as any}
+                style={styles.startIconCircle}
+              >
+                <MaterialCommunityIcons name="navigation-variant" size={48} color="#fff" />
+              </LinearGradient>
+            </Animated.View>
             <Text style={styles.startTitle}>Ready to ride?</Text>
             <Text style={styles.startSub}>
               RoadSense will detect road anomalies{'\n'}as you drive
