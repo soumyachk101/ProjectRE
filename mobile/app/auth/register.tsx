@@ -41,8 +41,10 @@ export default function Register() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <LinearGradient colors={gradients.aurora as any} style={StyleSheet.absoluteFill} />
+      <View style={styles.orbOne} />
+      <View style={styles.orbTwo} />
       <View style={styles.inner}>
-        {/* Logo area with gradient */}
         <Animated.View entering={FadeInDown.duration(500)} style={styles.logoArea}>
           <LinearGradient
             colors={gradients.primaryBright as any}
@@ -57,11 +59,10 @@ export default function Register() {
 
         <Animated.View entering={FadeInDown.delay(100).duration(400)}>
           <Text style={styles.title}>Let's get started</Text>
-          <Text style={styles.sub}>Your phone number helps identify your trips</Text>
+          <Text style={styles.sub}>A private road-sensing account for automatic trip detection.</Text>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.fields}>
-          {/* Name input */}
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>NAME</Text>
             <View style={styles.inputWrap}>
@@ -77,7 +78,6 @@ export default function Register() {
             </View>
           </View>
 
-          {/* Phone input */}
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>PHONE NUMBER</Text>
             <View style={styles.inputWrap}>
@@ -118,9 +118,27 @@ export default function Register() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
+  orbOne: {
+    position: 'absolute',
+    width: 230,
+    height: 230,
+    borderRadius: 115,
+    backgroundColor: 'rgba(90,200,250,0.16)',
+    top: 60,
+    right: -90,
+  },
+  orbTwo: {
+    position: 'absolute',
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: 'rgba(0,122,255,0.10)',
+    bottom: -90,
+    left: -130,
+  },
   inner: {
     flex: 1,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
     justifyContent: 'center',
     gap: spacing.lg,
   },
@@ -132,7 +150,7 @@ const styles = StyleSheet.create({
   logoCircle: {
     width: 80,
     height: 80,
-    borderRadius: 24,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadows.lg,
@@ -142,8 +160,8 @@ const styles = StyleSheet.create({
     color: colors.primary,
     letterSpacing: 1,
   },
-  title: { ...typography.display, color: colors.textPrimary },
-  sub: { ...typography.body, color: colors.textSecondary, marginTop: -8 },
+  title: { ...typography.display, color: colors.textPrimary, textAlign: 'center' },
+  sub: { ...typography.body, color: colors.textSecondary, marginTop: 4, textAlign: 'center' },
   fields: { gap: spacing.md },
   field: { gap: spacing.xs },
   fieldLabel: {
@@ -154,12 +172,13 @@ const styles = StyleSheet.create({
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surfaceLight,
+    backgroundColor: colors.glass,
     borderRadius: radius.card,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: 'rgba(255,255,255,0.82)',
     paddingHorizontal: spacing.md,
     gap: spacing.sm,
+    ...shadows.sm,
   },
   countryCode: {
     ...typography.bodyMedium,

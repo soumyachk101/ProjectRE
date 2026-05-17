@@ -39,17 +39,20 @@ const SLIDES = [
 function SlideItem({ item }: { item: typeof SLIDES[0] }) {
   return (
     <View style={slide.container}>
-      <LinearGradient
-        colors={item.gradient as any}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={slide.iconCircle}
-      >
-        <MaterialCommunityIcons name={item.icon} size={56} color="#fff" />
-      </LinearGradient>
-      <Text style={slide.headline}>{item.headline}</Text>
-      <Text style={slide.subline}>{item.subline}</Text>
-      <Text style={slide.accent}>{item.accent}</Text>
+      <Animated.View entering={FadeInDown.duration(520)} style={slide.heroCard}>
+        <LinearGradient
+          colors={item.gradient as any}
+          start={{ x: 0.2, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={slide.iconCircle}
+        >
+          <MaterialCommunityIcons name={item.icon} size={56} color="#fff" />
+        </LinearGradient>
+        <Text style={slide.eyebrow}>ROADSENSE AI</Text>
+        <Text style={slide.headline}>{item.headline}</Text>
+        <Text style={slide.subline}>{item.subline}</Text>
+        <Text style={slide.accent}>{item.accent}</Text>
+      </Animated.View>
     </View>
   );
 }
@@ -63,14 +66,29 @@ const slide = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     gap: spacing.md,
   },
+  heroCard: {
+    width: '100%',
+    alignItems: 'center',
+    borderRadius: radius.modal,
+    backgroundColor: colors.glass,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.8)',
+    padding: spacing.xl,
+    ...shadows.lg,
+  },
   iconCircle: {
     width: 120,
     height: 120,
-    borderRadius: 36,
+    borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.lg,
     ...shadows.lg,
+  },
+  eyebrow: {
+    ...typography.label,
+    color: colors.accent,
+    marginBottom: spacing.sm,
   },
   headline: {
     ...typography.display,
@@ -112,8 +130,10 @@ function SetupSlide({ onDone }: { onDone: (d: SetupData) => void }) {
   ];
 
   return (
-    <View style={setupStyles.container}>
+    <Animated.View entering={FadeInDown.duration(520)} style={setupStyles.container}>
+      <Text style={setupStyles.eyebrow}>PERSONALIZE DETECTION</Text>
       <Text style={setupStyles.title}>Setup</Text>
+      <Text style={setupStyles.subtitle}>RoadSense tunes detection to your ride and phone position.</Text>
 
       <Text style={setupStyles.sectionLabel}>VEHICLE TYPE</Text>
       <View style={setupStyles.optionRow}>
@@ -164,7 +184,7 @@ function SetupSlide({ onDone }: { onDone: (d: SetupData) => void }) {
           disabled={!vehicle || !placement}
         />
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -176,7 +196,17 @@ const setupStyles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     gap: spacing.md,
   },
+  eyebrow: {
+    ...typography.label,
+    color: colors.accent,
+  },
   title: { ...typography.display, color: colors.textPrimary, marginBottom: spacing.sm },
+  subtitle: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginTop: -spacing.md,
+    marginBottom: spacing.sm,
+  },
   sectionLabel: {
     ...typography.label,
     color: colors.textMuted,
@@ -192,11 +222,12 @@ const setupStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.glass,
     borderRadius: radius.card,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.lg,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: 'rgba(255,255,255,0.82)',
+    ...shadows.sm,
   },
   optionActive: {
     borderColor: colors.primary,
@@ -223,7 +254,9 @@ export default function Onboarding() {
   const totalSlides = SLIDES.length + 1; // +1 for setup
 
   return (
-    <View style={styles.container}>
+    <LinearGradient colors={gradients.aurora as any} style={styles.container}>
+      <View style={styles.orbOne} />
+      <View style={styles.orbTwo} />
       <FlatList
         ref={flatListRef}
         data={[...SLIDES, { key: 'setup' } as any]}
@@ -258,12 +291,30 @@ export default function Onboarding() {
           </TouchableOpacity>
         )}
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
+  orbOne: {
+    position: 'absolute',
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(90,200,250,0.18)',
+    top: 90,
+    right: -80,
+  },
+  orbTwo: {
+    position: 'absolute',
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: 'rgba(0,122,255,0.10)',
+    bottom: 90,
+    left: -120,
+  },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',

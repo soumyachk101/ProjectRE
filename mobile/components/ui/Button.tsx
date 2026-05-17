@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, StyleSheet, ActivityIndicator, ViewStyle } from 'react-native';
+import { Text, StyleSheet, ActivityIndicator, View, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, gradients, radius, shadows, typography } from '../../constants/theme';
 import { PressableScale } from './PressableScale';
@@ -46,6 +46,7 @@ export function Button({ label, onPress, variant = 'primary', loading, disabled,
         end={{ x: 1, y: 1 }}
         style={[styles.base, shadows.md, disabled && styles.disabled]}
       >
+        <View style={styles.highlight} />
         {loading ? (
           <ActivityIndicator color="#ffffff" size="small" />
         ) : (
@@ -62,13 +63,16 @@ export function Button({ label, onPress, variant = 'primary', loading, disabled,
 const styles = StyleSheet.create({
   base: {
     borderRadius: radius.pill,
-    paddingVertical: 16,
-    paddingHorizontal: 28,
+    paddingVertical: 17,
+    paddingHorizontal: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 54,
+    minHeight: 58,
     flexDirection: 'row',
     gap: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
   },
   ghost: {
     backgroundColor: 'transparent',
@@ -77,11 +81,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0,
     elevation: 0,
   },
+  highlight: {
+    position: 'absolute',
+    top: 1,
+    left: 18,
+    right: 18,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.45)',
+  },
   disabled: {
     opacity: 0.5,
   },
   label: {
     ...typography.h3,
     color: colors.textPrimary,
+    letterSpacing: -0.1,
   },
 });

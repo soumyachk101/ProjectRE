@@ -76,6 +76,9 @@ export default function Verify() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <LinearGradient colors={gradients.aurora as any} style={StyleSheet.absoluteFill} />
+      <View style={styles.orbOne} />
+      <View style={styles.orbTwo} />
       <View style={styles.inner}>
         <Animated.View entering={FadeInDown.duration(500)} style={styles.iconArea}>
           <LinearGradient
@@ -88,7 +91,7 @@ export default function Verify() {
 
         <Animated.View entering={FadeInDown.delay(100).duration(400)}>
           <Text style={styles.title}>Verification</Text>
-          <Text style={styles.sub}>Enter the 6-digit code sent to</Text>
+          <Text style={styles.sub}>Enter the secure 6-digit code sent to</Text>
           <Text style={styles.phone}>+91 {phone}</Text>
         </Animated.View>
 
@@ -141,9 +144,27 @@ export default function Verify() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
+  orbOne: {
+    position: 'absolute',
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(90,200,250,0.16)',
+    top: 70,
+    right: -90,
+  },
+  orbTwo: {
+    position: 'absolute',
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: 'rgba(0,122,255,0.10)',
+    bottom: -80,
+    left: -120,
+  },
   inner: {
     flex: 1,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
     justifyContent: 'center',
     alignItems: 'center',
     gap: spacing.lg,
@@ -152,14 +173,14 @@ const styles = StyleSheet.create({
   iconCircle: {
     width: 80,
     height: 80,
-    borderRadius: 24,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadows.lg,
   },
   title: { ...typography.display, color: colors.textPrimary, textAlign: 'center' },
-  sub: { ...typography.body, color: colors.textSecondary, textAlign: 'center', marginTop: -8 },
-  phone: { ...typography.h3, color: colors.primary, textAlign: 'center' },
+  sub: { ...typography.body, color: colors.textSecondary, textAlign: 'center', marginTop: 4 },
+  phone: { ...typography.h3, color: colors.accent, textAlign: 'center', marginTop: spacing.xs },
   otpRow: {
     flexDirection: 'row',
     gap: 10,
@@ -169,14 +190,15 @@ const styles = StyleSheet.create({
     width: 48,
     height: 56,
     borderRadius: radius.sm,
-    backgroundColor: colors.surfaceLight,
+    backgroundColor: colors.glass,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: 'rgba(255,255,255,0.82)',
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadows.sm,
   },
   otpBoxFilled: {
-    borderColor: colors.primary,
+    borderColor: colors.accent,
     backgroundColor: colors.primaryGlow,
   },
   otpBoxError: {

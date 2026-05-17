@@ -141,12 +141,13 @@ export default function HomeScreen() {
 
       {/* Glassmorphism header */}
       <View style={styles.headerWrap}>
-        <BlurView intensity={80} tint="light" style={styles.headerBlur}>
+        <BlurView intensity={90} tint="light" style={styles.headerBlur}>
           <View style={styles.headerContent}>
             <View>
+              <Text style={styles.eyebrow}>LIVE ROAD INTELLIGENCE</Text>
               <Text style={styles.headerTitle}>RoadSense</Text>
               <Text style={styles.headerSub}>
-                {nearbyEvents.length} events nearby
+                {locationReady ? `${nearbyEvents.length} events nearby` : 'Finding your location'}
               </Text>
             </View>
             <View style={styles.liveDot}>
@@ -158,7 +159,7 @@ export default function HomeScreen() {
 
       {/* Filter bar */}
       <View style={styles.filterWrap}>
-        <BlurView intensity={80} tint="light" style={styles.filterBlur}>
+        <BlurView intensity={90} tint="light" style={styles.filterBlur}>
           <View style={styles.filterRow}>
             {FILTER_OPTIONS.map((opt) => {
               const isActive = filter === opt.key;
@@ -206,7 +207,7 @@ export default function HomeScreen() {
           colors={gradients.surface as any}
           style={styles.locationBtnInner}
         >
-          <MaterialCommunityIcons name="crosshairs-gps" size={20} color={colors.primaryLight} />
+          <MaterialCommunityIcons name="crosshairs-gps" size={20} color={colors.accent} />
         </LinearGradient>
       </TouchableOpacity>
 
@@ -219,7 +220,7 @@ export default function HomeScreen() {
           >
             <Animated.View style={tripBtnStyle}>
               <LinearGradient
-                colors={gradients.primaryBright as any}
+                colors={gradients.accent as any}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={[styles.tripBtn, shadows.lg]}
@@ -252,7 +253,7 @@ const darkMapStyle = [
 ];
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: colors.bg },
   map: { flex: 1 },
   topGradient: {
     position: 'absolute',
@@ -269,18 +270,25 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.05)',
+    borderColor: 'rgba(255,255,255,0.88)',
+    ...shadows.md,
   },
   headerBlur: {
-    padding: spacing.md,
+    padding: spacing.lg,
+    backgroundColor: colors.glass,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  eyebrow: {
+    ...typography.label,
+    color: colors.accent,
+    marginBottom: 3,
+  },
   headerTitle: {
-    ...typography.h2,
+    ...typography.h1,
     color: colors.textPrimary,
   },
   headerSub: {
@@ -292,7 +300,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    backgroundColor: 'rgba(16, 185, 129, 0.16)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -310,11 +318,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.05)',
+    borderColor: 'rgba(255,255,255,0.86)',
+    ...shadows.sm,
   },
   filterBlur: {
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
+    backgroundColor: colors.glass,
   },
   filterRow: {
     flexDirection: 'row',
@@ -341,7 +351,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255,255,255,0.9)',
     ...shadows.md,
   },
   locationBtnInner: {
@@ -352,7 +362,7 @@ const styles = StyleSheet.create({
   },
   tripBtnWrap: {
     position: 'absolute',
-    bottom: 100,
+    bottom: 104,
     left: spacing.lg,
     right: spacing.lg,
   },
@@ -361,8 +371,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    paddingVertical: 18,
+    paddingVertical: 19,
     borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.24)',
   },
   tripBtnText: {
     ...typography.h2,
