@@ -113,7 +113,7 @@ export default function Onboarding() {
     if (page < SLIDES.length) {
       const next = page + 1;
       setPage(next);
-      flatRef.current?.scrollToIndex({ index: Math.min(next, SLIDES.length - 1), animated: true });
+      flatRef.current?.scrollToIndex({ index: Math.min(next, SLIDES.length), animated: true });
     }
   };
 
