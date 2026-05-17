@@ -201,7 +201,7 @@ export default function ActiveTripScreen() {
 
       {/* Glassmorphism stats panel */}
       <View style={styles.statsWrap}>
-        <BlurView intensity={40} tint="dark" style={styles.statsBlur}>
+        <BlurView intensity={80} tint="light" style={styles.statsBlur}>
           <Animated.View entering={FadeInDown.duration(400)}>
             <View style={styles.statsRow}>
               <StatCard label="Distance" value={`${distanceKm.toFixed(1)} km`} accentColor={colors.primary} />
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(124, 58, 237, 0.2)',
+    borderColor: 'rgba(0, 0, 0, 0.05)',
   },
   statsBlur: {
     padding: spacing.md,

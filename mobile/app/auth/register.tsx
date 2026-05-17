@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   },
   logoText: {
     ...typography.h2,
-    color: colors.primaryLight,
+    color: colors.primary,
     letterSpacing: 1,
   },
   title: { ...typography.display, color: colors.textPrimary },

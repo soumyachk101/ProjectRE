@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   },
   title: { ...typography.display, color: colors.textPrimary, textAlign: 'center' },
   sub: { ...typography.body, color: colors.textSecondary, textAlign: 'center', marginTop: -8 },
-  phone: { ...typography.h3, color: colors.primaryLight, textAlign: 'center' },
+  phone: { ...typography.h3, color: colors.primary, textAlign: 'center' },
   otpRow: {
     flexDirection: 'row',
     gap: 10,

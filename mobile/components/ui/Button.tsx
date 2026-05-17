@@ -47,11 +47,11 @@ export function Button({ label, onPress, variant = 'primary', loading, disabled,
         style={[styles.base, shadows.md, disabled && styles.disabled]}
       >
         {loading ? (
-          <ActivityIndicator color={colors.textPrimary} size="small" />
+          <ActivityIndicator color="#ffffff" size="small" />
         ) : (
           <>
             {icon}
-            <Text style={styles.label}>{label}</Text>
+            <Text style={[styles.label, { color: '#ffffff' }]}>{label}</Text>
           </>
         )}
       </LinearGradient>

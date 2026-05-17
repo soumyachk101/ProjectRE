@@ -93,7 +93,7 @@ export default function HomeScreen() {
         initialRegion={region}
         showsUserLocation
         showsMyLocationButton={false}
-        customMapStyle={darkMapStyle}
+        // customMapStyle={darkMapStyle} // Removed for clean light theme
         onRegionChangeComplete={setRegion}
       >
         {filteredEvents.map((event) => (
@@ -103,7 +103,7 @@ export default function HomeScreen() {
 
       {/* Glassmorphism header */}
       <View style={styles.headerWrap}>
-        <BlurView intensity={40} tint="dark" style={styles.headerBlur}>
+        <BlurView intensity={80} tint="light" style={styles.headerBlur}>
           <View style={styles.headerContent}>
             <View>
               <Text style={styles.headerTitle}>RoadSense</Text>
@@ -120,7 +120,7 @@ export default function HomeScreen() {
 
       {/* Filter bar */}
       <View style={styles.filterWrap}>
-        <BlurView intensity={30} tint="dark" style={styles.filterBlur}>
+        <BlurView intensity={80} tint="light" style={styles.filterBlur}>
           <View style={styles.filterRow}>
             {FILTER_OPTIONS.map((opt) => {
               const isActive = filter === opt.key;
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(124, 58, 237, 0.2)',
+    borderColor: 'rgba(0, 0, 0, 0.05)',
   },
   headerBlur: {
     padding: spacing.md,
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(124, 58, 237, 0.15)',
+    borderColor: 'rgba(0, 0, 0, 0.05)',
   },
   filterBlur: {
     paddingHorizontal: spacing.sm,

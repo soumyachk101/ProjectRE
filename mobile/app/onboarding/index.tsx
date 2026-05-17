@@ -85,7 +85,7 @@ const slide = StyleSheet.create({
   },
   accent: {
     ...typography.h3,
-    color: colors.primaryLight,
+    color: colors.primary,
     textAlign: 'center',
   },
 });
@@ -127,9 +127,9 @@ function SetupSlide({ onDone }: { onDone: (d: SetupData) => void }) {
             <MaterialCommunityIcons
               name={v.icon}
               size={28}
-              color={vehicle === v.key ? colors.primaryLight : colors.textMuted}
+              color={vehicle === v.key ? colors.primary : colors.textMuted}
             />
-            <Text style={[setupStyles.optionLabel, vehicle === v.key && { color: colors.primaryLight }]}>
+            <Text style={[setupStyles.optionLabel, vehicle === v.key && { color: colors.primary }]}>
               {v.label}
             </Text>
           </TouchableOpacity>
@@ -148,9 +148,9 @@ function SetupSlide({ onDone }: { onDone: (d: SetupData) => void }) {
             <MaterialCommunityIcons
               name={p.icon}
               size={28}
-              color={placement === p.key ? colors.primaryLight : colors.textMuted}
+              color={placement === p.key ? colors.primary : colors.textMuted}
             />
-            <Text style={[setupStyles.optionLabel, placement === p.key && { color: colors.primaryLight }]}>
+            <Text style={[setupStyles.optionLabel, placement === p.key && { color: colors.primary }]}>
               {p.label}
             </Text>
           </TouchableOpacity>

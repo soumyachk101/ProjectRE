@@ -16,7 +16,7 @@ export default function TabsLayout() {
           position: 'absolute',
           height: 70,
         },
-        tabBarActiveTintColor: colors.primaryLight,
+        tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: {
           fontSize: 11,
@@ -27,7 +27,7 @@ export default function TabsLayout() {
         tabBarBackground: () => (
           <BlurView
             intensity={50}
-            tint="dark"
+            tint="light"
             style={StyleSheet.absoluteFill}
           >
             <View style={[StyleSheet.absoluteFill, styles.tabBarOverlay]} />
@@ -68,9 +68,9 @@ function TabIcon({ name, color, focused }: { name: keyof typeof MaterialCommunit
 
 const styles = StyleSheet.create({
   tabBarOverlay: {
-    backgroundColor: 'rgba(13, 2, 33, 0.75)',
+    backgroundColor: 'rgba(255, 255, 255, 0.75)',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(124, 58, 237, 0.15)',
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
   },
   iconWrap: {
     alignItems: 'center',
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.primary,
     marginTop: 4,
   },
 });

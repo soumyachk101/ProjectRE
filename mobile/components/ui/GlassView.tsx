@@ -10,7 +10,7 @@ interface GlassViewProps {
   tint?: 'dark' | 'light' | 'default';
 }
 
-export function GlassView({ children, intensity = 40, style, tint = 'dark' }: GlassViewProps) {
+export function GlassView({ children, intensity = 80, style, tint = 'light' }: GlassViewProps) {
   return (
     <BlurView intensity={intensity} tint={tint} style={[styles.glass, style]}>
       <View style={styles.inner}>{children}</View>
@@ -20,7 +20,7 @@ export function GlassView({ children, intensity = 40, style, tint = 'dark' }: Gl
 
 const styles = StyleSheet.create({
   glass: {
-    backgroundColor: colors.glass,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
     overflow: 'hidden',
   },
   inner: {
