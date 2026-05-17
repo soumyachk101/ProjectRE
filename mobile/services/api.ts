@@ -1,6 +1,6 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import { AuthTokens, PocCandidate, Trip, User } from '../types';
+import { AuthTokens, PocCandidate, Trip, User, QualityScore, UserStats, LeaderboardEntry, ManualReport } from '../types';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000/api/v1';
 
@@ -66,5 +66,18 @@ export const api = {
       client.get('/events', { params: { lat, lng, radius_m: radiusM } }),
     bbox: (lat1: number, lng1: number, lat2: number, lng2: number) =>
       client.get('/events', { params: { bbox: `${lat1},${lng1},${lat2},${lng2}` } }),
+    report: (report: ManualReport) =>
+      client.post('/events/report', report),
+    quality: (lat: number, lng: number, radiusM: number = 500) =>
+      client.get<QualityScore>('/events/quality', { params: { lat, lng, radius_m: radiusM } }),
+  },
+
+  users: {
+    stats: () => client.get<UserStats>('/users/me/stats'),
+  },
+
+  leaderboard: {
+    list: (limit: number = 20) =>
+      client.get<LeaderboardEntry[]>('/leaderboard', { params: { limit } }),
   },
 };

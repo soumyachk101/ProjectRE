@@ -46,3 +46,9 @@ coverage/
 *.pem
 .openclaude/
 
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Modal, Pressable, Share, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { ConfirmedEvent } from '../../types';
@@ -18,6 +18,16 @@ export function EventDetailSheet({ event, onClose }: EventDetailSheetProps) {
     const m = Math.floor((diff % 3_600_000) / 60_000);
     if (h > 0) return `${h}h ago`;
     return `${m}m ago`;
+  };
+
+  const handleShare = async () => {
+    if (!event) return;
+    const label = event.event_type.replace('_', ' ');
+    try {
+      await Share.share({
+        message: `${label.toUpperCase()} detected at (${event.lat.toFixed(4)}, ${event.lng.toFixed(4)}) — confirmed by ${event.trail_count} riders via RoadSense`,
+      });
+    } catch {}
   };
 
   if (!event) return null;
@@ -90,10 +100,16 @@ export function EventDetailSheet({ event, onClose }: EventDetailSheetProps) {
           </View>
         </View>
 
-        {/* Report fixed button */}
-        <View style={styles.reportBtn}>
-          <MaterialCommunityIcons name="check-circle-outline" size={18} color={colors.success} />
-          <Text style={styles.reportBtnText}>Report Fixed</Text>
+        {/* Action buttons */}
+        <View style={styles.actionRow}>
+          <Pressable style={styles.reportBtn} onPress={() => Alert.alert('Thank you', 'Event marked for review')}>
+            <MaterialCommunityIcons name="check-circle-outline" size={18} color={colors.success} />
+            <Text style={styles.reportBtnText}>Report Fixed</Text>
+          </Pressable>
+          <Pressable style={styles.shareBtn} onPress={handleShare}>
+            <MaterialCommunityIcons name="share-variant-outline" size={18} color={colors.accent} />
+            <Text style={styles.shareBtnText}>Share</Text>
+          </Pressable>
         </View>
       </View>
       </View>
@@ -185,12 +201,17 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   vehicleCount: { ...typography.h3, color: colors.textPrimary },
+  actionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
   reportBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginTop: spacing.sm,
     backgroundColor: colors.elevated,
     borderRadius: radius.card,
     padding: spacing.md,
@@ -198,4 +219,17 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   reportBtnText: { ...typography.bodyMedium, color: colors.success },
+  shareBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.elevated,
+    borderRadius: radius.card,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  shareBtnText: { ...typography.bodyMedium, color: colors.accent },
 });

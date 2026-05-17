@@ -230,6 +230,52 @@ export default function ActiveTripScreen() {
         </BlurView>
       </View>
 
+      {/* Quick report buttons */}
+      <View style={styles.quickReportWrap}>
+        <TouchableOpacity
+          style={styles.quickReportBtn}
+          onPress={async () => {
+            const loc = await Location.getCurrentPositionAsync({});
+            await api.events.report({ event_type: 'pothole', lat: loc.coords.latitude, lng: loc.coords.longitude });
+            incrementEvents();
+            setLastEvent('pothole');
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          }}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons name="circle-off-outline" size={22} color="#ef4444" />
+          <Text style={styles.quickReportLabel}>Pothole</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.quickReportBtn}
+          onPress={async () => {
+            const loc = await Location.getCurrentPositionAsync({});
+            await api.events.report({ event_type: 'speed_breaker', lat: loc.coords.latitude, lng: loc.coords.longitude });
+            incrementEvents();
+            setLastEvent('speed_breaker');
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          }}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons name="alert-circle" size={22} color="#f59e0b" />
+          <Text style={styles.quickReportLabel}>Breaker</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.quickReportBtn}
+          onPress={async () => {
+            const loc = await Location.getCurrentPositionAsync({});
+            await api.events.report({ event_type: 'broken_patch', lat: loc.coords.latitude, lng: loc.coords.longitude });
+            incrementEvents();
+            setLastEvent('broken_patch');
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          }}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons name="road-variant" size={22} color="#f97316" />
+          <Text style={styles.quickReportLabel}>Patch</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* End trip button */}
       <View style={styles.endWrap}>
         <TouchableOpacity onPress={endTrip} activeOpacity={0.85}>
@@ -315,6 +361,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
   },
+  quickReportWrap: {
+    position: 'absolute',
+    bottom: 170,
+    left: spacing.lg,
+    right: spacing.lg,
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  quickReportBtn: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: radius.card,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.sm,
+  },
+  quickReportLabel: { ...typography.caption, color: colors.textSecondary, fontWeight: '600' },
   endWrap: {
     position: 'absolute',
     bottom: 100,

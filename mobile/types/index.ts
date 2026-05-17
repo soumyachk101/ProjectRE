@@ -75,3 +75,32 @@ export interface MapRegion {
   latitudeDelta: number;
   longitudeDelta: number;
 }
+
+export interface QualityScore {
+  score: number; // 0-100
+  label: 'Excellent' | 'Good' | 'Fair' | 'Poor' | 'Very Poor';
+  event_count: number;
+  radius_m: number;
+}
+
+export interface UserStats {
+  total_trips: number;
+  total_events: number;
+  total_distance_km: number;
+  rank: number;
+  streak_days: number;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  name: string;
+  events_detected: number;
+  trips_completed: number;
+}
+
+export interface ManualReport {
+  event_type: EventType;
+  lat: number;
+  lng: number;
+  note?: string;
+}

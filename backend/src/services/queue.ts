@@ -1,8 +1,10 @@
 import { Queue, Worker } from 'bullmq';
 import { redis } from '../redis';
 import { prisma } from '../db';
+import { config } from '../config';
 
 const connection = { host: 'localhost', port: 6379 };
+const ML_URL = config.mlServiceUrl ?? 'http://localhost:8001';
 
 export const tripQueue = new Queue('trip-processing', { connection });
 
@@ -25,16 +27,56 @@ export function startWorkers() {
   return worker;
 }
 
+async function classifyWithML(pocs: any[]) {
+  try {
+    const res = await fetch(`${ML_URL}/classify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        candidates: pocs.map((poc) => ({
+          z_value: poc.zValue,
+          z_next: poc.zNext,
+          z_prev: poc.zPrev,
+          tp: poc.tp ?? 0,
+          speed_kmh: poc.speedKmh ?? 0,
+          lat: poc.lat,
+          lng: poc.lng,
+        })),
+      }),
+    });
+
+    if (!res.ok) throw new Error(`ML service returned ${res.status}`);
+    const data = await res.json() as { results: any[] };
+    return data.results;
+  } catch (err) {
+    console.warn('ML service unavailable, falling back to rule-based:', (err as Error).message);
+    return null;
+  }
+}
+
 async function classifyTrip(tripId: string) {
   const pocs = await prisma.pocCandidate.findMany({ where: { tripId } });
   if (!pocs.length) return;
 
-  // Classify each PoC: z_value > 0 = speed_breaker, z_value < 0 = pothole
-  // Full ML classification runs in Python ml/ service; this is the rule-based fallback
+  // Try ML classification first, fall back to rule-based
+  const mlResults = await classifyWithML(pocs);
+
   await prisma.$transaction(
-    pocs.map((poc) => {
-      const eventType = poc.zValue > 0 ? 'speed_breaker' : 'pothole';
+    pocs.map((poc, i) => {
+      let eventType: string;
+      let confidence: number;
+
+      if (mlResults && mlResults[i]) {
+        eventType = mlResults[i].event_type;
+        confidence = mlResults[i].confidence;
+      } else {
+        // Rule-based fallback
+        eventType = poc.zValue > 0 ? 'speed_breaker' : 'pothole';
+        confidence = 0.6;
+      }
+
       const severity = Math.abs(poc.zValue) > 2.0 ? 'HIGH' : 'MEDIUM';
+
       return prisma.roadEvent.create({
         data: {
           tripId,
@@ -43,7 +85,7 @@ async function classifyTrip(tripId: string) {
           lat: poc.lat,
           lng: poc.lng,
           severity,
-          confidenceScore: 0.7,
+          confidenceScore: confidence,
         },
       });
     })

@@ -49,6 +49,63 @@ eventsRouter.get('/bbox', async (req, res) => {
   res.json(events.map(eventView));
 });
 
+// POST /api/v1/events/report — manual event report
+eventsRouter.post('/report', async (req, res) => {
+  const { event_type, lat, lng, note } = req.body;
+  if (!event_type || lat == null || lng == null) {
+    res.status(422).json({ detail: 'event_type, lat, lng required' });
+    return;
+  }
+
+  // Manual reports are user-confirmed → create ConfirmedEvent directly
+  const event = await prisma.confirmedEvent.create({
+    data: {
+      eventType: event_type,
+      lat,
+      lng,
+      trailCount: 1,
+      confidenceScore: 0.8,
+      firstSeen: new Date(),
+      lastSeen: new Date(),
+      isActive: true,
+    },
+  });
+
+  res.status(201).json({ id: event.id, message: 'Report submitted' });
+});
+
+// GET /api/v1/events/quality?lat=X&lng=Y&radius_m=500
+eventsRouter.get('/quality', async (req, res) => {
+  const lat = parseFloat(req.query.lat as string);
+  const lng = parseFloat(req.query.lng as string);
+  const radiusM = parseFloat((req.query.radius_m as string) ?? '500');
+
+  if (isNaN(lat) || isNaN(lng)) {
+    res.status(422).json({ detail: 'lat and lng required' });
+    return;
+  }
+
+  const degDelta = radiusM / 111320;
+
+  const eventCount = await prisma.confirmedEvent.count({
+    where: {
+      isActive: true,
+      lat: { gte: lat - degDelta, lte: lat + degDelta },
+      lng: { gte: lng - degDelta, lte: lng + degDelta },
+    },
+  });
+
+  const score = Math.max(0, Math.min(100, 100 - eventCount * 5));
+  let label: string;
+  if (score >= 80) label = 'Excellent';
+  else if (score >= 60) label = 'Good';
+  else if (score >= 40) label = 'Fair';
+  else if (score >= 20) label = 'Poor';
+  else label = 'Very Poor';
+
+  res.json({ score, label, event_count: eventCount, radius_m: radiusM });
+});
+
 function eventView(e: any) {
   return {
     id: e.id,

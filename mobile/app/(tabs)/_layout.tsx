@@ -45,11 +45,29 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="report"
+        options={{
+          title: 'Report',
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="alert-plus" color={color} focused={focused} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="history"
         options={{
           title: 'Trips',
           tabBarIcon: ({ color, focused }) => (
             <TabIcon name="history" color={color} focused={focused} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="account" color={color} focused={focused} />
           ),
         }}
       />

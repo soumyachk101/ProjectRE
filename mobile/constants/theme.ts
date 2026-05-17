@@ -60,6 +60,14 @@ export const severityColors = {
   LOW: '#84cc16',
 } as const;
 
+export const qualityColors = {
+  Excellent: '#10b981',
+  Good: '#34d399',
+  Fair: '#f59e0b',
+  Poor: '#f97316',
+  'Very Poor': '#ef4444',
+} as const;
+
 export const spacing = {
   xs: 4,
   sm: 8,

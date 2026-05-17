@@ -23,4 +23,5 @@ export const config = {
     mockCode: '123456',
     ttlSeconds: 300,
   },
+  mlServiceUrl: process.env.ML_SERVICE_URL ?? 'http://localhost:8001',
 } as const;

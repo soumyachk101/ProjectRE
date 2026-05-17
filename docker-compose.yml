@@ -16,6 +16,7 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-30d}
       OTP_MOCK_MODE: ${OTP_MOCK_MODE:-true}
+      ML_SERVICE_URL: http://ml:8001
       NODE_ENV: production
       PORT: 8000
     ports:
@@ -24,6 +25,8 @@ services:
       db:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      ml:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
@@ -75,6 +78,18 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  ml:
+    build:
+      context: ./backend/ml
+    container_name: roadsense-ml
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   # Create bucket on first run
   minio-init:

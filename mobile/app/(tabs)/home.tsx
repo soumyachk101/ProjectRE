@@ -23,6 +23,7 @@ import { colors, gradients, spacing, typography, radius, shadows } from '../../c
 import { eventColors } from '../../constants/theme';
 import { EventMarker } from '../../components/map/EventMarker';
 import { EventDetailSheet } from '../../components/map/EventDetailSheet';
+import { SearchBar } from '../../components/map/SearchBar';
 
 const FILTER_OPTIONS: { key: EventType | 'all'; label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }[] = [
   { key: 'all', label: 'All', icon: 'layers-outline' },
@@ -155,6 +156,20 @@ export default function HomeScreen() {
             </View>
           </View>
         </BlurView>
+      </View>
+
+      {/* Search bar */}
+      <View style={styles.searchWrap}>
+        <SearchBar
+          onSelect={(lat, lng) => {
+            mapRef.current?.animateToRegion({
+              latitude: lat,
+              longitude: lng,
+              latitudeDelta: 0.02,
+              longitudeDelta: 0.02,
+            });
+          }}
+        />
       </View>
 
       {/* Filter bar */}
@@ -310,9 +325,15 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: colors.success,
   },
-  filterWrap: {
+  searchWrap: {
     position: 'absolute',
     top: 120,
+    left: spacing.md,
+    right: spacing.md,
+  },
+  filterWrap: {
+    position: 'absolute',
+    top: 168,
     left: spacing.md,
     right: spacing.md,
     borderRadius: radius.pill,
