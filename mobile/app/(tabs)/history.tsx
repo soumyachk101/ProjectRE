@@ -1,11 +1,15 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, SectionList } from 'react-native';
+import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { Trip } from '../../types';
-import { colors, spacing, typography } from '../../constants/theme';
+import { colors, gradients, spacing, typography, radius, shadows } from '../../constants/theme';
 import { TripCard } from '../../components/trip/TripCard';
+import { ShimmerRow } from '../../components/ui/Shimmer';
 
 function groupTripsByDate(trips: Trip[]) {
   const map: Record<string, Trip[]> = {};
@@ -14,12 +18,10 @@ function groupTripsByDate(trips: Trip[]) {
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
-
     let label: string;
     if (d.toDateString() === today.toDateString()) label = 'Today';
     else if (d.toDateString() === yesterday.toDateString()) label = 'Yesterday';
     else label = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-
     if (!map[label]) map[label] = [];
     map[label].push(t);
   });
@@ -38,40 +40,61 @@ export default function HistoryScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>My Trips</Text>
+        <MaterialCommunityIcons name="history" size={24} color={colors.textMuted} />
       </View>
 
+      {/* Contribution banner */}
       {totalEvents > 0 && (
-        <View style={styles.contributionBanner}>
-          <Text style={styles.contributionText}>
-            You've helped map {totalEvents} road events! 🎉
-          </Text>
-        </View>
+        <Animated.View entering={FadeInDown.delay(100).duration(400)}>
+          <LinearGradient
+            colors={gradients.primaryBright as any}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.banner, shadows.md]}
+          >
+            <MaterialCommunityIcons name="shield-star" size={28} color="rgba(255,255,255,0.9)" />
+            <View style={styles.bannerText}>
+              <Text style={styles.bannerTitle}>{totalEvents} events mapped</Text>
+              <Text style={styles.bannerSub}>Keep riding to improve road safety</Text>
+            </View>
+          </LinearGradient>
+        </Animated.View>
       )}
 
+      {/* Content */}
       {isLoading ? (
-        <Text style={styles.loading}>Loading trips...</Text>
+        <View style={styles.listPad}>
+          <ShimmerRow count={4} itemHeight={80} />
+        </View>
       ) : trips.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyIcon}>🗺️</Text>
-          <Text style={styles.emptyTitle}>No trips yet</Text>
-          <Text style={styles.emptySub}>Start a trip to begin mapping road events</Text>
+          <LinearGradient
+            colors={gradients.card as any}
+            style={styles.emptyCard}
+          >
+            <MaterialCommunityIcons name="map-search-outline" size={48} color={colors.textMuted} />
+            <Text style={styles.emptyTitle}>No trips yet</Text>
+            <Text style={styles.emptySub}>Start your first trip to begin mapping roads</Text>
+          </LinearGradient>
         </View>
       ) : (
-        <SectionList
-          sections={sections}
-          keyExtractor={(item) => item.id}
-          renderSectionHeader={({ section: { title } }) => (
-            <Text style={styles.sectionHeader}>{title}</Text>
+        <FlatList
+          data={sections}
+          keyExtractor={(s) => s.title}
+          contentContainerStyle={styles.listPad}
+          renderItem={({ item: section, index: si }) => (
+            <Animated.View entering={FadeInDown.delay(si * 80).duration(300)}>
+              <Text style={styles.sectionTitle}>{section.title}</Text>
+              {section.data.map((trip, ti) => (
+                <Animated.View key={trip.id} entering={FadeInDown.delay(si * 80 + ti * 40).duration(300)}>
+                  <TripCard trip={trip} />
+                </Animated.View>
+              ))}
+            </Animated.View>
           )}
-          renderItem={({ item }) => (
-            <View style={styles.cardWrap}>
-              <TripCard trip={item} />
-            </View>
-          )}
-          contentContainerStyle={{ padding: spacing.md, gap: spacing.sm }}
-          stickySectionHeadersEnabled={false}
         />
       )}
     </SafeAreaView>
@@ -80,18 +103,50 @@ export default function HistoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  header: { padding: spacing.md, paddingBottom: 0 },
-  title: { ...typography.h1, color: colors.textPrimary },
-  contributionBanner: {
-    margin: spacing.md, backgroundColor: colors.primary + '22',
-    borderRadius: 8, padding: spacing.md, borderWidth: 1, borderColor: colors.primary,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
   },
-  contributionText: { ...typography.body, color: colors.primaryLight, textAlign: 'center' },
-  loading: { ...typography.body, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xl },
-  sectionHeader: { ...typography.h3, color: colors.textSecondary, marginBottom: spacing.sm, marginTop: spacing.md },
-  cardWrap: { marginBottom: spacing.sm },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
-  emptyIcon: { fontSize: 64 },
+  title: { ...typography.display, color: colors.textPrimary },
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.card,
+  },
+  bannerText: { flex: 1 },
+  bannerTitle: { ...typography.h3, color: '#fff' },
+  bannerSub: { ...typography.caption, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
+  listPad: { paddingHorizontal: spacing.lg, paddingBottom: 100 },
+  sectionTitle: {
+    ...typography.label,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  empty: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  emptyCard: {
+    alignItems: 'center',
+    padding: spacing['2xl'],
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: spacing.md,
+    width: '100%',
+  },
   emptyTitle: { ...typography.h2, color: colors.textPrimary },
   emptySub: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
 });

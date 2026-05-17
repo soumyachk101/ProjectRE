@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/auth';
-import { colors, spacing, typography, radius } from '../../constants/theme';
+import { colors, gradients, spacing, typography, radius, shadows } from '../../constants/theme';
 import { Button } from '../../components/ui/Button';
 
 export default function Register() {
@@ -39,43 +42,75 @@ export default function Register() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.inner}>
-        <Text style={styles.logo}>🛣️ RoadSense</Text>
-        <Text style={styles.title}>Let's get started</Text>
-        <Text style={styles.sub}>Your phone number helps identify your trips</Text>
+        {/* Logo area with gradient */}
+        <Animated.View entering={FadeInDown.duration(500)} style={styles.logoArea}>
+          <LinearGradient
+            colors={gradients.primaryBright as any}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.logoCircle}
+          >
+            <MaterialCommunityIcons name="road-variant" size={40} color="#fff" />
+          </LinearGradient>
+          <Text style={styles.logoText}>RoadSense</Text>
+        </Animated.View>
 
-        <View style={styles.field}>
-          <Text style={styles.fieldLabel}>NAME (optional)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Your name"
-            placeholderTextColor={colors.textMuted}
-            value={name}
-            onChangeText={setName}
-            autoCapitalize="words"
+        <Animated.View entering={FadeInDown.delay(100).duration(400)}>
+          <Text style={styles.title}>Let's get started</Text>
+          <Text style={styles.sub}>Your phone number helps identify your trips</Text>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.fields}>
+          {/* Name input */}
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>NAME</Text>
+            <View style={styles.inputWrap}>
+              <MaterialCommunityIcons name="account-outline" size={20} color={colors.textMuted} />
+              <TextInput
+                style={styles.input}
+                placeholder="Your name (optional)"
+                placeholderTextColor={colors.textMuted}
+                value={name}
+                onChangeText={setName}
+                returnKeyType="next"
+              />
+            </View>
+          </View>
+
+          {/* Phone input */}
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>PHONE NUMBER</Text>
+            <View style={styles.inputWrap}>
+              <MaterialCommunityIcons name="phone-outline" size={20} color={colors.textMuted} />
+              <Text style={styles.countryCode}>+91</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="9876543210"
+                placeholderTextColor={colors.textMuted}
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                maxLength={10}
+              />
+            </View>
+          </View>
+
+          {error && (
+            <View style={styles.errorRow}>
+              <MaterialCommunityIcons name="alert-circle" size={16} color={colors.danger} />
+              <Text style={styles.error}>{error}</Text>
+            </View>
+          )}
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(300).duration(400)} style={styles.buttonWrap}>
+          <Button
+            label="Continue"
+            onPress={handleContinue}
+            loading={loading}
+            icon={<MaterialCommunityIcons name="arrow-right" size={20} color="#fff" />}
           />
-        </View>
-
-        <View style={styles.field}>
-          <Text style={styles.fieldLabel}>PHONE NUMBER</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="+91 98765 43210"
-            placeholderTextColor={colors.textMuted}
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-            maxLength={13}
-          />
-        </View>
-
-        {error && <Text style={styles.error}>{error}</Text>}
-
-        <Button
-          label="Send OTP →"
-          onPress={handleContinue}
-          loading={loading}
-          style={{ marginTop: spacing.lg }}
-        />
+        </Animated.View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -84,23 +119,67 @@ export default function Register() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   inner: {
-    flex: 1, justifyContent: 'center',
-    paddingHorizontal: spacing.xl, gap: spacing.md,
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    justifyContent: 'center',
+    gap: spacing.lg,
   },
-  logo: { ...typography.display, color: colors.primary },
-  title: { ...typography.h1, color: colors.textPrimary },
-  sub: { ...typography.body, color: colors.textSecondary },
+  logoArea: {
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  logoCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.lg,
+  },
+  logoText: {
+    ...typography.h2,
+    color: colors.primaryLight,
+    letterSpacing: 1,
+  },
+  title: { ...typography.display, color: colors.textPrimary },
+  sub: { ...typography.body, color: colors.textSecondary, marginTop: -8 },
+  fields: { gap: spacing.md },
   field: { gap: spacing.xs },
-  fieldLabel: { ...typography.label, color: colors.textMuted, textTransform: 'uppercase' },
-  input: {
-    backgroundColor: colors.surface,
+  fieldLabel: {
+    ...typography.label,
+    color: colors.textMuted,
+    paddingLeft: 4,
+  },
+  inputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceLight,
     borderRadius: radius.card,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+  },
+  countryCode: {
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
+    borderRightWidth: 1,
+    borderRightColor: colors.border,
+    paddingRight: spacing.sm,
+  },
+  input: {
+    flex: 1,
     ...typography.body,
     color: colors.textPrimary,
-    minHeight: 50,
+    paddingVertical: 16,
+  },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
   },
   error: { ...typography.caption, color: colors.danger },
+  buttonWrap: { marginTop: spacing.sm },
 });

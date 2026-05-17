@@ -4,7 +4,10 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import { colors, spacing, typography, radius } from '../../constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { colors, gradients, spacing, typography, radius, shadows } from '../../constants/theme';
 import { Button } from '../../components/ui/Button';
 
 const { width } = Dimensions.get('window');
@@ -16,33 +19,76 @@ const SLIDES = [
   {
     key: 'hook',
     dot: 0,
-    content: () => (
-      <View style={slide.center}>
-        <Text style={slide.emoji}>🗺️</Text>
-        <Text style={slide.headline}>India's roads are{'\n'}mapped by satellites.</Text>
-        <Text style={slide.headline}>But potholes aren't.</Text>
-        <Text style={[slide.headline, { color: colors.primary, marginTop: spacing.md }]}>Until now.</Text>
-      </View>
-    ),
+    icon: 'road-variant' as const,
+    headline: "India's roads are mapped by satellites.",
+    subline: "But potholes aren't.",
+    accent: 'Until now.',
+    gradient: gradients.primaryBright,
   },
   {
     key: 'how',
     dot: 1,
-    content: () => (
-      <View style={slide.center}>
-        <View style={slide.iconRow}>
-          <Text style={slide.bigIcon}>📱</Text>
-          <Text style={[slide.bigIcon, { color: colors.primary }]}>→</Text>
-          <Text style={slide.bigIcon}>📡</Text>
-          <Text style={[slide.bigIcon, { color: colors.primary }]}>→</Text>
-          <Text style={slide.bigIcon}>🗺️</Text>
-        </View>
-        <Text style={slide.headline}>Just ride.{'\n'}RoadSense detects.{'\n'}The map updates.</Text>
-        <Text style={[slide.subtext, { marginTop: spacing.md }]}>No tapping. No tagging.{'\n'}Fully automatic.</Text>
-      </View>
-    ),
+    icon: 'cellphone-arrow-down' as const,
+    headline: 'Just ride.',
+    subline: 'RoadSense detects. The map updates.',
+    accent: 'No tapping. No tagging. Fully automatic.',
+    gradient: gradients.accent,
   },
 ];
+
+function SlideItem({ item }: { item: typeof SLIDES[0] }) {
+  return (
+    <View style={slide.container}>
+      <LinearGradient
+        colors={item.gradient as any}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={slide.iconCircle}
+      >
+        <MaterialCommunityIcons name={item.icon} size={56} color="#fff" />
+      </LinearGradient>
+      <Text style={slide.headline}>{item.headline}</Text>
+      <Text style={slide.subline}>{item.subline}</Text>
+      <Text style={slide.accent}>{item.accent}</Text>
+    </View>
+  );
+}
+
+const slide = StyleSheet.create({
+  container: {
+    width,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    gap: spacing.md,
+  },
+  iconCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+    ...shadows.lg,
+  },
+  headline: {
+    ...typography.display,
+    color: colors.textPrimary,
+    textAlign: 'center',
+    lineHeight: 40,
+  },
+  subline: {
+    ...typography.h3,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  accent: {
+    ...typography.h3,
+    color: colors.primaryLight,
+    textAlign: 'center',
+  },
+});
 
 interface SetupData {
   vehicleType: VehicleType | null;
@@ -53,165 +99,189 @@ function SetupSlide({ onDone }: { onDone: (d: SetupData) => void }) {
   const [vehicle, setVehicle] = useState<VehicleType | null>(null);
   const [placement, setPlacement] = useState<PlacementType | null>(null);
 
-  const vehicles: { key: VehicleType; icon: string; label: string }[] = [
-    { key: 'two_wheeler', icon: '🏍️', label: 'Bike' },
-    { key: 'three_wheeler', icon: '🛺', label: 'Auto' },
-    { key: 'four_wheeler', icon: '🚗', label: 'Car' },
+  const vehicles: { key: VehicleType; icon: keyof typeof MaterialCommunityIcons.glyphMap; label: string }[] = [
+    { key: 'two_wheeler', icon: 'motorbike', label: '2 Wheeler' },
+    { key: 'three_wheeler', icon: 'rickshaw', label: '3 Wheeler' },
+    { key: 'four_wheeler', icon: 'car', label: '4 Wheeler' },
   ];
 
-  const placements: { key: PlacementType; label: string }[] = [
-    { key: 'mounter', label: 'Mounted on vehicle' },
-    { key: 'pocket', label: 'In my pocket' },
-    { key: 'dashboard', label: 'On dashboard' },
+  const placements: { key: PlacementType; icon: keyof typeof MaterialCommunityIcons.glyphMap; label: string }[] = [
+    { key: 'mounter', icon: 'cellphone-screenshot', label: 'Mounted' },
+    { key: 'pocket', icon: 'pocket', label: 'Pocket' },
+    { key: 'dashboard', icon: 'car-info', label: 'Dashboard' },
   ];
 
   return (
-    <View style={[slide.center, { paddingHorizontal: spacing.xl }]}>
-      <Text style={slide.sectionTitle}>One-time setup</Text>
+    <View style={setupStyles.container}>
+      <Text style={setupStyles.title}>Setup</Text>
 
-      <Text style={slide.label}>My vehicle is:</Text>
-      <View style={styles.vehicleRow}>
+      <Text style={setupStyles.sectionLabel}>VEHICLE TYPE</Text>
+      <View style={setupStyles.optionRow}>
         {vehicles.map((v) => (
           <TouchableOpacity
             key={v.key}
-            style={[styles.vehicleBtn, vehicle === v.key && styles.vehicleBtnActive]}
+            style={[setupStyles.option, vehicle === v.key && setupStyles.optionActive]}
             onPress={() => setVehicle(v.key)}
+            activeOpacity={0.8}
           >
-            <Text style={styles.vehicleIcon}>{v.icon}</Text>
-            <Text style={styles.vehicleLabel}>{v.label}</Text>
+            <MaterialCommunityIcons
+              name={v.icon}
+              size={28}
+              color={vehicle === v.key ? colors.primaryLight : colors.textMuted}
+            />
+            <Text style={[setupStyles.optionLabel, vehicle === v.key && { color: colors.primaryLight }]}>
+              {v.label}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <Text style={[slide.label, { marginTop: spacing.lg }]}>My phone is usually:</Text>
-      {placements.map((p) => (
-        <TouchableOpacity
-          key={p.key}
-          style={[styles.radioRow, placement === p.key && styles.radioRowActive]}
-          onPress={() => setPlacement(p.key)}
-        >
-          <View style={[styles.radioCircle, placement === p.key && styles.radioCircleFilled]} />
-          <Text style={styles.radioLabel}>{p.label}</Text>
-        </TouchableOpacity>
-      ))}
+      <Text style={setupStyles.sectionLabel}>PHONE PLACEMENT</Text>
+      <View style={setupStyles.optionRow}>
+        {placements.map((p) => (
+          <TouchableOpacity
+            key={p.key}
+            style={[setupStyles.option, placement === p.key && setupStyles.optionActive]}
+            onPress={() => setPlacement(p.key)}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons
+              name={p.icon}
+              size={28}
+              color={placement === p.key ? colors.primaryLight : colors.textMuted}
+            />
+            <Text style={[setupStyles.optionLabel, placement === p.key && { color: colors.primaryLight }]}>
+              {p.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
-      <Button
-        label="Get Started →"
-        onPress={() => onDone({ vehicleType: vehicle, placement })}
-        disabled={!vehicle || !placement}
-        style={{ marginTop: spacing.xl, width: '100%' }}
-      />
+      <View style={setupStyles.btnWrap}>
+        <Button
+          label="Get Started"
+          onPress={() => onDone({ vehicleType: vehicle, placement })}
+          disabled={!vehicle || !placement}
+        />
+      </View>
     </View>
   );
 }
 
-export default function Onboarding() {
-  const [page, setPage] = useState(0);
-  const flatRef = useRef<FlatList>(null);
-
-  const goNext = () => {
-    if (page < SLIDES.length) {
-      const next = page + 1;
-      setPage(next);
-      flatRef.current?.scrollToIndex({ index: Math.min(next, SLIDES.length), animated: true });
-    }
-  };
-
-  const skip = () => router.replace('/auth/register');
-
-  const handleSetupDone = async ({ vehicleType, placement }: SetupData) => {
-    if (vehicleType) await SecureStore.setItemAsync('vehicle_type', vehicleType);
-    if (placement) await SecureStore.setItemAsync('phone_placement', placement);
-    router.replace('/auth/register');
-  };
-
-  const allItems = [...SLIDES.map((s) => ({ ...s, isSetup: false })), { key: 'setup', dot: 2, isSetup: true, content: null }];
-
-  const renderItem: ListRenderItem<typeof allItems[0]> = ({ item }) => (
-    <View style={{ width }}>
-      {item.isSetup ? (
-        <SetupSlide onDone={handleSetupDone} />
-      ) : (
-        item.content?.()
-      )}
-    </View>
-  );
-
-  return (
-    <View style={styles.container}>
-      <FlatList
-        ref={flatRef}
-        data={allItems}
-        renderItem={renderItem}
-        keyExtractor={(i) => i.key}
-        horizontal
-        pagingEnabled
-        scrollEnabled={false}
-        showsHorizontalScrollIndicator={false}
-      />
-
-      {page < SLIDES.length && (
-        <View style={styles.footer}>
-          <View style={styles.dots}>
-            {[0, 1, 2].map((i) => (
-              <View key={i} style={[styles.dot, page === i && styles.dotActive]} />
-            ))}
-          </View>
-          <View style={styles.footerRow}>
-            <TouchableOpacity onPress={skip}>
-              <Text style={styles.skip}>Skip</Text>
-            </TouchableOpacity>
-            <Button label="Next →" onPress={goNext} style={{ paddingHorizontal: spacing.xl }} />
-          </View>
-        </View>
-      )}
-    </View>
-  );
-}
-
-const slide = StyleSheet.create({
-  center: {
+const setupStyles = StyleSheet.create({
+  container: {
+    width,
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
     gap: spacing.md,
   },
-  emoji: { fontSize: 72 },
-  bigIcon: { fontSize: 36 },
-  iconRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  headline: { ...typography.h1, color: colors.textPrimary, textAlign: 'center', lineHeight: 36 },
-  subtext: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
-  sectionTitle: { ...typography.h2, color: colors.textPrimary, alignSelf: 'flex-start' },
-  label: { ...typography.body, color: colors.textSecondary, alignSelf: 'flex-start' },
+  title: { ...typography.display, color: colors.textPrimary, marginBottom: spacing.sm },
+  sectionLabel: {
+    ...typography.label,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    marginTop: spacing.sm,
+  },
+  optionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  option: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    paddingVertical: spacing.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  optionActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryGlow,
+  },
+  optionLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  btnWrap: { marginTop: spacing.lg },
 });
+
+export default function Onboarding() {
+  const flatListRef = useRef<FlatList>(null);
+  const [slideIndex, setSlideIndex] = useState(0);
+
+  const handleSetupDone = async (data: SetupData) => {
+    if (data.vehicleType) await SecureStore.setItemAsync('vehicleType', data.vehicleType);
+    if (data.placement) await SecureStore.setItemAsync('placement', data.placement);
+    await SecureStore.setItemAsync('onboardingDone', 'true');
+    router.replace('/auth/register');
+  };
+
+  const totalSlides = SLIDES.length + 1; // +1 for setup
+
+  return (
+    <View style={styles.container}>
+      <FlatList
+        ref={flatListRef}
+        data={[...SLIDES, { key: 'setup' } as any]}
+        keyExtractor={(item) => item.key}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        scrollEnabled={slideIndex < SLIDES.length} // disable scroll on setup
+        onViewableItemsChanged={({ viewableItems }) => {
+          const idx = viewableItems[0]?.index;
+          if (idx != null) setSlideIndex(idx);
+        }}
+        renderItem={({ item, index }) => {
+          if (index < SLIDES.length) return <SlideItem item={item} />;
+          return <SetupSlide onDone={handleSetupDone} />;
+        }}
+      />
+
+      {/* Dots + skip */}
+      <View style={styles.footer}>
+        <View style={styles.dots}>
+          {Array.from({ length: totalSlides }).map((_, i) => (
+            <View
+              key={i}
+              style={[styles.dot, i === slideIndex && styles.dotActive]}
+            />
+          ))}
+        </View>
+        {slideIndex < SLIDES.length && (
+          <TouchableOpacity onPress={() => router.replace('/auth/register')}>
+            <Text style={styles.skip}>Skip</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  footer: { paddingHorizontal: spacing.lg, paddingBottom: spacing['2xl'], gap: spacing.md },
-  dots: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.border },
-  dotActive: { backgroundColor: colors.primary, width: 20 },
-  footerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  skip: { ...typography.body, color: colors.textMuted },
-  vehicleRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  vehicleBtn: {
-    flex: 1, alignItems: 'center', padding: spacing.md,
-    backgroundColor: colors.surface, borderRadius: radius.card,
-    borderWidth: 1, borderColor: colors.border,
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xl,
+    paddingBottom: 50,
   },
-  vehicleBtnActive: { borderColor: colors.primary, backgroundColor: colors.primaryGlow },
-  vehicleIcon: { fontSize: 32 },
-  vehicleLabel: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xs },
-  radioRow: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    width: '100%', padding: spacing.sm, borderRadius: radius.card,
+  dots: { flexDirection: 'row', gap: 8 },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.border,
   },
-  radioRowActive: { backgroundColor: colors.elevated },
-  radioCircle: {
-    width: 20, height: 20, borderRadius: 10,
-    borderWidth: 2, borderColor: colors.border,
+  dotActive: {
+    width: 24,
+    backgroundColor: colors.primary,
+    borderRadius: 4,
   },
-  radioCircleFilled: { borderColor: colors.primary, backgroundColor: colors.primary },
-  radioLabel: { ...typography.body, color: colors.textPrimary },
+  skip: { ...typography.bodyMedium, color: colors.textMuted },
 });

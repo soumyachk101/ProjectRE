@@ -5,12 +5,16 @@ import * as Location from 'expo-location';
 import * as SecureStore from 'expo-secure-store';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { api } from '../../services/api';
 import { SensorEngine, VehicleType, Placement } from '../../services/SensorEngine';
 import { useTripStore } from '../../store/trip';
 import { useEventsStore } from '../../store/events';
 import { PocCandidate } from '../../types';
-import { colors, spacing, typography, radius } from '../../constants/theme';
+import { colors, gradients, spacing, typography, radius, shadows } from '../../constants/theme';
 import { StatCard } from '../../components/ui/StatCard';
 
 interface RoutePoint {
@@ -22,6 +26,7 @@ export default function ActiveTripScreen() {
   const mapRef = useRef<MapView>(null);
   const engineRef = useRef<SensorEngine | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const locSubRef = useRef<Location.LocationSubscription | null>(null);
 
   const [route, setRoute] = useState<RoutePoint[]>([]);
   const [starting, setStarting] = useState(false);
@@ -38,168 +43,273 @@ export default function ActiveTripScreen() {
   const resetTrip = useTripStore((s) => s.resetTrip);
   const triggerAlert = useEventsStore((s) => s.triggerAlert);
 
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60).toString().padStart(2, '0');
-    const s = (secs % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
   };
 
-  const startTrip = useCallback(async () => {
+  const pocBufferRef = useRef<PocCandidate[]>([]);
+
+  const handlePocDetected = useCallback((poc: PocCandidate) => {
+    incrementEvents();
+    const eventType = poc.z_value < 0 ? 'pothole' : 'speed_breaker';
+    setLastEvent(eventType);
+    if (eventType === 'pothole') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+  }, []);
+
+  const handleFlush = useCallback(async (pocs: PocCandidate[]) => {
+    // buffer for later upload
+    pocBufferRef.current.push(...pocs);
+  }, []);
+
+  const startTrip = async () => {
     setStarting(true);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Location access required to record trips.');
-        return;
-      }
-
-      const vehicleType = ((await SecureStore.getItemAsync('vehicle_type')) ?? 'two_wheeler') as VehicleType;
-      const placement = ((await SecureStore.getItemAsync('phone_placement')) ?? 'mounter') as Placement;
+      const vehicleType = (await SecureStore.getItemAsync('vehicleType')) as VehicleType ?? 'two_wheeler';
+      const placement = (await SecureStore.getItemAsync('placement')) as Placement ?? 'mounter';
+      const loc = await Location.getCurrentPositionAsync({});
 
       const { data: trip } = await api.trips.create(vehicleType, placement);
       setActiveTrip(trip);
 
-      timerRef.current = setInterval(incrementElapsed, 1000);
-
-      const loc = await Location.getCurrentPositionAsync({});
-      const start = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
-      setRoute([start]);
-      mapRef.current?.animateToRegion({ ...start, latitudeDelta: 0.01, longitudeDelta: 0.01 }, 600);
-
-      engineRef.current = new SensorEngine({
+      const engine = new SensorEngine({
         tripId: trip.id,
         vehicleType,
         placement,
-        onPocDetected: (poc: PocCandidate) => {
-          incrementEvents();
-          setLastEvent(poc.z_value > 0 ? '⚡ Speed Breaker' : '🕳 Pothole');
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-          triggerAlert(poc.z_value > 0 ? 'speed_breaker' : 'pothole', 0);
-        },
-        onFlush: async (pocs) => {
-          await api.trips.uploadPoc(trip.id, pocs);
-        },
+        onPocDetected: handlePocDetected,
+        onFlush: handleFlush,
       });
-      await engineRef.current.start();
+      engineRef.current = engine;
+      await engine.start();
 
-      // Track route
-      await Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 2000, distanceInterval: 10 },
+      setRoute([{ latitude: loc.coords.latitude, longitude: loc.coords.longitude }]);
+      timerRef.current = setInterval(() => incrementElapsed(), 1000);
+
+      locSubRef.current = await Location.watchPositionAsync(
+        { distanceInterval: 20, accuracy: Location.Accuracy.Balanced },
         (loc) => {
-          setRoute((prev) => [
-            ...prev,
-            { latitude: loc.coords.latitude, longitude: loc.coords.longitude },
-          ]);
+          const point = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+          setRoute((r) => [...r, point]);
+          mapRef.current?.animateToRegion({ ...point, latitudeDelta: 0.01, longitudeDelta: 0.01 });
         }
       );
+    } catch (e: any) {
+      Alert.alert('Error', e.message ?? 'Failed to start trip');
     } finally {
       setStarting(false);
     }
-  }, []);
+  };
 
-  const endTrip = useCallback(async () => {
+  const endTrip = async () => {
     if (!activeTrip) return;
     engineRef.current?.stop();
+    locSubRef.current?.remove();
     if (timerRef.current) clearInterval(timerRef.current);
+
     try {
       await api.trips.end(activeTrip.id);
     } catch {}
+
     resetTrip();
-    router.replace('/(tabs)/history');
-  }, [activeTrip]);
+    router.replace('/(tabs)/home');
+  };
 
   useEffect(() => {
-    if (!activeTrip) startTrip();
     return () => {
+      engineRef.current?.stop();
+      locSubRef.current?.remove();
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
 
+  if (!activeTrip) {
+    return (
+      <View style={styles.startContainer}>
+        <LinearGradient
+          colors={gradients.dark as any}
+          style={styles.startGradient}
+        >
+          <Animated.View entering={FadeInDown.duration(500)} style={styles.startContent}>
+            <LinearGradient
+              colors={gradients.primaryBright as any}
+              style={styles.startIconCircle}
+            >
+              <MaterialCommunityIcons name="navigation-variant" size={48} color="#fff" />
+            </LinearGradient>
+            <Text style={styles.startTitle}>Ready to ride?</Text>
+            <Text style={styles.startSub}>
+              RoadSense will detect road anomalies{'\n'}as you drive
+            </Text>
+
+            <View style={styles.startStats}>
+              <View style={styles.startStatItem}>
+                <MaterialCommunityIcons name="cellphone-arrow-down" size={20} color={colors.primaryLight} />
+                <Text style={styles.startStatText}>Keep phone{'\n'}steady</Text>
+              </View>
+              <View style={styles.startStatDivider} />
+              <View style={styles.startStatItem}>
+                <MaterialCommunityIcons name="map-marker-path" size={20} color={colors.primaryLight} />
+                <Text style={styles.startStatText}>Route auto{'\n'}tracked</Text>
+              </View>
+              <View style={styles.startStatDivider} />
+              <View style={styles.startStatItem}>
+                <MaterialCommunityIcons name="shield-check" size={20} color={colors.primaryLight} />
+                <Text style={styles.startStatText}>Data stays{'\n'}private</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity onPress={startTrip} disabled={starting} activeOpacity={0.85} style={{ width: '100%' }}>
+              <LinearGradient
+                colors={gradients.primaryBright as any}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.startBtn, shadows.lg]}
+              >
+                <MaterialCommunityIcons name="play" size={22} color="#fff" />
+                <Text style={styles.startBtnText}>{starting ? 'Starting...' : 'Start Trip'}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
+        </LinearGradient>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      {/* Status bar */}
-      <View style={styles.statusBar}>
-        <View style={styles.statusDot} />
-        <Text style={styles.statusText}>SENSING ACTIVE</Text>
-        <Text style={styles.distanceText}>{distanceKm.toFixed(1)} km covered</Text>
-      </View>
-
-      {/* Map */}
       <MapView
         ref={mapRef}
         style={styles.map}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        customMapStyle={darkMapStyle}
         showsUserLocation
-        followsUserLocation
+        showsMyLocationButton={false}
       >
         {route.length > 1 && (
           <Polyline
             coordinates={route}
             strokeColor={colors.primary}
-            strokeWidth={3}
+            strokeWidth={4}
+            lineDashPattern={[0]}
           />
         )}
       </MapView>
 
-      {/* Stats panel */}
-      <View style={styles.statsPanel}>
-        <StatCard label="Speed" value="— km/h" />
-        <StatCard label="Events" value={eventCount} />
-        <StatCard label="Time" value={formatTime(elapsedSeconds)} />
+      {/* Glassmorphism stats panel */}
+      <View style={styles.statsWrap}>
+        <BlurView intensity={40} tint="dark" style={styles.statsBlur}>
+          <Animated.View entering={FadeInDown.duration(400)}>
+            <View style={styles.statsRow}>
+              <StatCard label="Distance" value={`${distanceKm.toFixed(1)} km`} accentColor={colors.primary} />
+              <StatCard label="Duration" value={formatTime(elapsedSeconds)} accentColor={colors.accent} />
+              <StatCard label="Events" value={eventCount} sub={lastEventLabel ?? undefined} accentColor={colors.warning} />
+            </View>
+          </Animated.View>
+        </BlurView>
       </View>
 
-      {lastEventLabel && (
-        <View style={styles.lastEvent}>
-          <Text style={styles.lastEventText}>Last: {lastEventLabel}</Text>
-        </View>
-      )}
-
-      <TouchableOpacity style={styles.endBtn} onPress={endTrip}>
-        <Text style={styles.endBtnText}>⏹ END TRIP</Text>
-      </TouchableOpacity>
+      {/* End trip button */}
+      <View style={styles.endWrap}>
+        <TouchableOpacity onPress={endTrip} activeOpacity={0.85}>
+          <LinearGradient
+            colors={gradients.danger as any}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.endBtn, shadows.md]}
+          >
+            <MaterialCommunityIcons name="stop" size={20} color="#fff" />
+            <Text style={styles.endBtnText}>End Trip</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  statusBar: {
-    backgroundColor: colors.success + '22',
-    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    borderBottomWidth: 1, borderBottomColor: colors.success,
-    zIndex: 10,
-  },
-  statusDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
-  statusText: { ...typography.label, color: colors.success, textTransform: 'uppercase' },
-  distanceText: { ...typography.caption, color: colors.textSecondary, marginLeft: 'auto' },
+  container: { flex: 1 },
   map: { flex: 1 },
-  statsPanel: {
-    flexDirection: 'row', gap: spacing.sm,
-    padding: spacing.md, backgroundColor: colors.surface,
-    borderTopWidth: 1, borderTopColor: colors.border,
+  // Start screen
+  startContainer: { flex: 1 },
+  startGradient: { flex: 1 },
+  startContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    gap: spacing.lg,
   },
-  lastEvent: {
-    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-    backgroundColor: colors.elevated,
+  startIconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.lg,
   },
-  lastEventText: { ...typography.body, color: colors.textSecondary },
+  startTitle: { ...typography.display, color: colors.textPrimary, textAlign: 'center' },
+  startSub: { ...typography.body, color: colors.textSecondary, textAlign: 'center', lineHeight: 22 },
+  startStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    width: '100%',
+  },
+  startStatItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 6,
+  },
+  startStatText: { ...typography.caption, color: colors.textSecondary, textAlign: 'center' },
+  startStatDivider: { width: 1, height: 40, backgroundColor: colors.border },
+  startBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: 18,
+    borderRadius: radius.pill,
+  },
+  startBtnText: { ...typography.h2, color: '#fff' },
+  // Active trip
+  statsWrap: {
+    position: 'absolute',
+    top: 50,
+    left: spacing.md,
+    right: spacing.md,
+    borderRadius: radius.card,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(124, 58, 237, 0.2)',
+  },
+  statsBlur: {
+    padding: spacing.md,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  endWrap: {
+    position: 'absolute',
+    bottom: 100,
+    left: spacing.xl,
+    right: spacing.xl,
+  },
   endBtn: {
-    backgroundColor: colors.danger,
-    margin: spacing.md, marginTop: 0,
-    borderRadius: radius.card, padding: spacing.md, alignItems: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: 18,
+    borderRadius: radius.pill,
   },
-  endBtnText: { ...typography.h3, color: colors.textPrimary },
+  endBtnText: { ...typography.h2, color: '#fff' },
 });
-
-const darkMapStyle = [
-  { elementType: 'geometry', stylers: [{ color: '#0d0221' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#94a3b8' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#0d0221' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#1a1035' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#241548' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#06b6d422' }] },
-  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-];

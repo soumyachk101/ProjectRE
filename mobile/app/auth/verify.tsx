@@ -1,24 +1,67 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/auth';
-import { colors, spacing, typography, radius } from '../../constants/theme';
+import { colors, gradients, spacing, typography, radius, shadows } from '../../constants/theme';
 import { Button } from '../../components/ui/Button';
+
+const OTP_LENGTH = 6;
 
 export default function Verify() {
   const { phone } = useLocalSearchParams<{ phone: string }>();
-  const [otp, setOtp] = useState('');
+  const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const setTokens = useAuthStore((s) => s.setTokens);
+  const inputRefs = useRef<(TextInput | null)[]>([]);
+
+  useEffect(() => {
+    inputRefs.current[0]?.focus();
+  }, []);
+
+  const handleOtpChange = (text: string, index: number) => {
+    if (text.length > 1) {
+      // Paste support
+      const digits = text.replace(/\D/g, '').slice(0, OTP_LENGTH).split('');
+      const newOtp = [...otp];
+      digits.forEach((d, i) => {
+        if (index + i < OTP_LENGTH) newOtp[index + i] = d;
+      });
+      setOtp(newOtp);
+      const nextIndex = Math.min(index + digits.length, OTP_LENGTH - 1);
+      inputRefs.current[nextIndex]?.focus();
+      return;
+    }
+
+    const newOtp = [...otp];
+    newOtp[index] = text;
+    setOtp(newOtp);
+
+    if (text && index < OTP_LENGTH - 1) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleKeyPress = (e: any, index: number) => {
+    if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
+      const newOtp = [...otp];
+      newOtp[index - 1] = '';
+      setOtp(newOtp);
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
 
   const handleVerify = async () => {
-    if (otp.length !== 6) { setError('Enter 6-digit OTP'); return; }
+    const otpStr = otp.join('');
+    if (otpStr.length !== OTP_LENGTH) { setError('Enter 6-digit OTP'); return; }
     setLoading(true);
     setError(null);
     try {
-      const { data } = await api.auth.login(phone!, otp);
+      const { data } = await api.auth.login(phone!, otpStr);
       await setTokens(data.access_token, data.refresh_token);
       router.replace('/(tabs)/home');
     } catch {
@@ -29,42 +72,129 @@ export default function Verify() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Enter OTP</Text>
-      <Text style={styles.sub}>Sent to {phone}</Text>
-      <Text style={styles.hint}>(Dev mode: use 123456)</Text>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <View style={styles.inner}>
+        <Animated.View entering={FadeInDown.duration(500)} style={styles.iconArea}>
+          <LinearGradient
+            colors={gradients.accent as any}
+            style={styles.iconCircle}
+          >
+            <MaterialCommunityIcons name="shield-lock-outline" size={40} color="#fff" />
+          </LinearGradient>
+        </Animated.View>
 
-      <TextInput
-        style={styles.otpInput}
-        value={otp}
-        onChangeText={setOtp}
-        keyboardType="number-pad"
-        maxLength={6}
-        placeholder="------"
-        placeholderTextColor={colors.textMuted}
-        textAlign="center"
-      />
+        <Animated.View entering={FadeInDown.delay(100).duration(400)}>
+          <Text style={styles.title}>Verification</Text>
+          <Text style={styles.sub}>Enter the 6-digit code sent to</Text>
+          <Text style={styles.phone}>+91 {phone}</Text>
+        </Animated.View>
 
-      {error && <Text style={styles.error}>{error}</Text>}
+        {/* OTP boxes */}
+        <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.otpRow}>
+          {otp.map((digit, i) => (
+            <View
+              key={i}
+              style={[
+                styles.otpBox,
+                digit ? styles.otpBoxFilled : null,
+                error ? styles.otpBoxError : null,
+              ]}
+            >
+              <TextInput
+                ref={(ref) => { inputRefs.current[i] = ref; }}
+                style={styles.otpInput}
+                value={digit}
+                onChangeText={(t) => handleOtpChange(t, i)}
+                onKeyPress={(e) => handleKeyPress(e, i)}
+                keyboardType="number-pad"
+                maxLength={1}
+                selectTextOnFocus
+              />
+            </View>
+          ))}
+        </Animated.View>
 
-      <Button label="Verify →" onPress={handleVerify} loading={loading} />
-    </View>
+        {error && (
+          <View style={styles.errorRow}>
+            <MaterialCommunityIcons name="alert-circle" size={16} color={colors.danger} />
+            <Text style={styles.error}>{error}</Text>
+          </View>
+        )}
+
+        <Animated.View entering={FadeInDown.delay(300).duration(400)}>
+          <Text style={styles.hint}>
+            <MaterialCommunityIcons name="information-outline" size={14} color={colors.textMuted} />
+            {' '}Dev mode: use 123456
+          </Text>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(350).duration(400)} style={styles.buttonWrap}>
+          <Button label="Verify" onPress={handleVerify} loading={loading} />
+        </Animated.View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1, backgroundColor: colors.bg,
-    paddingHorizontal: spacing.xl, justifyContent: 'center', gap: spacing.md,
+  container: { flex: 1, backgroundColor: colors.bg },
+  inner: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.lg,
   },
-  title: { ...typography.h1, color: colors.textPrimary },
-  sub: { ...typography.body, color: colors.textSecondary },
-  hint: { ...typography.caption, color: colors.textMuted },
+  iconArea: { marginBottom: spacing.sm },
+  iconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.lg,
+  },
+  title: { ...typography.display, color: colors.textPrimary, textAlign: 'center' },
+  sub: { ...typography.body, color: colors.textSecondary, textAlign: 'center', marginTop: -8 },
+  phone: { ...typography.h3, color: colors.primaryLight, textAlign: 'center' },
+  otpRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: spacing.sm,
+  },
+  otpBox: {
+    width: 48,
+    height: 56,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceLight,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  otpBoxFilled: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryGlow,
+  },
+  otpBoxError: {
+    borderColor: colors.danger,
+  },
   otpInput: {
-    backgroundColor: colors.surface, borderRadius: radius.card,
-    borderWidth: 1, borderColor: colors.primary,
-    padding: spacing.lg, fontSize: 32, fontWeight: '700',
-    color: colors.textPrimary, letterSpacing: 12, marginVertical: spacing.md,
+    ...typography.h1,
+    color: colors.textPrimary,
+    textAlign: 'center',
+    width: '100%',
+    height: '100%',
+  },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   error: { ...typography.caption, color: colors.danger },
+  hint: { ...typography.caption, color: colors.textMuted, textAlign: 'center' },
+  buttonWrap: { width: '100%', marginTop: spacing.sm },
 });

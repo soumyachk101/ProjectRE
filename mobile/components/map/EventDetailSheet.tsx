@@ -1,11 +1,10 @@
-import React, { useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
+import React from 'react';
+import { View, Text, StyleSheet, Modal, Pressable } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { ConfirmedEvent } from '../../types';
-import { colors, spacing, typography, radius } from '../../constants/theme';
-import { EventBadge, SeverityBadge } from '../ui/Badge';
-
-const VEHICLE_ICONS = { two_wheeler: '🏍️', three_wheeler: '🛺', four_wheeler: '🚗' };
+import { colors, gradients, spacing, radius, shadows, typography, eventColors, eventGradients } from '../../constants/theme';
+import { EventBadge } from '../ui/Badge';
 
 interface EventDetailSheetProps {
   event: ConfirmedEvent | null;
@@ -13,10 +12,6 @@ interface EventDetailSheetProps {
 }
 
 export function EventDetailSheet({ event, onClose }: EventDetailSheetProps) {
-  const sheetRef = useRef<BottomSheet>(null);
-
-  const snapPoints = ['40%'];
-
   const timeAgo = (iso: string) => {
     const diff = Date.now() - new Date(iso).getTime();
     const h = Math.floor(diff / 3_600_000);
@@ -27,65 +22,180 @@ export function EventDetailSheet({ event, onClose }: EventDetailSheetProps) {
 
   if (!event) return null;
 
+  const gradient = eventGradients[event.event_type] ?? eventGradients.anomaly;
+
   return (
-    <BottomSheet
-      ref={sheetRef}
-      index={0}
-      snapPoints={snapPoints}
-      onClose={onClose}
-      enablePanDownToClose
-      backgroundStyle={styles.bg}
-      handleIndicatorStyle={styles.handle}
-    >
-      <BottomSheetView style={styles.content}>
-        <View style={styles.row}>
+    <Modal transparent visible={!!event} animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.backdrop} onPress={onClose} />
+      <View style={styles.sheetBg}>
+      <View style={styles.handle} />
+      {/* Gradient header strip */}
+      <LinearGradient
+        colors={gradient as any}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.headerStrip}
+      />
+
+      <View style={styles.content}>
+        <View style={styles.topRow}>
           <EventBadge type={event.event_type} />
           {event.confidence_score !== null && (
-            <Text style={styles.confidence}>
-              📊 {Math.round(event.confidence_score * 100)}% confidence
-            </Text>
+            <View style={styles.confidenceWrap}>
+              <MaterialCommunityIcons name="chart-bar" size={14} color={colors.textSecondary} />
+              <Text style={styles.confidence}>
+                {Math.round(event.confidence_score * 100)}% confidence
+              </Text>
+            </View>
           )}
         </View>
 
-        <Text style={styles.meta}>🕐 Reported {timeAgo(event.last_seen)}</Text>
-        <Text style={styles.meta}>👥 {event.trail_count} riders confirmed</Text>
-
-        <View style={styles.divider} />
-
-        <Text style={styles.sectionLabel}>DETECTED BY</Text>
-        <View style={styles.vehicleRow}>
-          <Text style={styles.vehicleChip}>🏍️ {Math.round(event.trail_count * 0.6)}</Text>
-          <Text style={styles.vehicleChip}>🛺 {Math.round(event.trail_count * 0.25)}</Text>
-          <Text style={styles.vehicleChip}>🚗 {Math.round(event.trail_count * 0.15)}</Text>
+        {/* Stats row */}
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <MaterialCommunityIcons name="clock-outline" size={18} color={colors.primaryLight} />
+            <Text style={styles.statValue}>{timeAgo(event.last_seen)}</Text>
+            <Text style={styles.statLabel}>Reported</Text>
+          </View>
+          <View style={[styles.statDivider]} />
+          <View style={styles.statItem}>
+            <MaterialCommunityIcons name="account-group" size={18} color={colors.primaryLight} />
+            <Text style={styles.statValue}>{event.trail_count}</Text>
+            <Text style={styles.statLabel}>Riders</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <MaterialCommunityIcons name="shield-check" size={18} color={colors.successLight} />
+            <Text style={styles.statValue}>
+              {event.trail_count >= 10 ? 'High' : event.trail_count >= 3 ? 'Medium' : 'Low'}
+            </Text>
+            <Text style={styles.statLabel}>Trust</Text>
+          </View>
         </View>
 
-        <TouchableOpacity style={styles.reportBtn}>
+        {/* Vehicle breakdown */}
+        <Text style={styles.sectionLabel}>DETECTED BY</Text>
+        <View style={styles.vehicleRow}>
+          <View style={styles.vehicleChip}>
+            <MaterialCommunityIcons name="motorbike" size={16} color={colors.primaryLight} />
+            <Text style={styles.vehicleCount}>{Math.round(event.trail_count * 0.6)}</Text>
+          </View>
+          <View style={styles.vehicleChip}>
+            <MaterialCommunityIcons name="rickshaw" size={16} color={colors.accent} />
+            <Text style={styles.vehicleCount}>{Math.round(event.trail_count * 0.25)}</Text>
+          </View>
+          <View style={styles.vehicleChip}>
+            <MaterialCommunityIcons name="car" size={16} color={colors.warning} />
+            <Text style={styles.vehicleCount}>{Math.round(event.trail_count * 0.15)}</Text>
+          </View>
+        </View>
+
+        {/* Report fixed button */}
+        <View style={styles.reportBtn}>
+          <MaterialCommunityIcons name="check-circle-outline" size={18} color={colors.success} />
           <Text style={styles.reportBtnText}>Report Fixed</Text>
-        </TouchableOpacity>
-      </BottomSheetView>
-    </BottomSheet>
+        </View>
+      </View>
+      </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  bg: { backgroundColor: colors.surface },
-  handle: { backgroundColor: colors.border },
-  content: { padding: spacing.md, gap: spacing.sm },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  sheetBg: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.modal,
+    borderTopRightRadius: radius.modal,
+    overflow: 'hidden',
+  },
+  handle: {
+    backgroundColor: colors.border,
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  headerStrip: {
+    height: 3,
+    borderTopLeftRadius: radius.modal,
+    borderTopRightRadius: radius.modal,
+  },
+  content: {
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  confidenceWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   confidence: { ...typography.caption, color: colors.textSecondary },
-  meta: { ...typography.body, color: colors.textSecondary },
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.xs },
-  sectionLabel: { ...typography.label, color: colors.textMuted, textTransform: 'uppercase' },
-  vehicleRow: { flexDirection: 'row', gap: spacing.md },
-  vehicleChip: { ...typography.body, color: colors.textPrimary },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.elevated,
+    borderRadius: radius.card,
+    padding: spacing.md,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+  },
+  statValue: { ...typography.h3, color: colors.textPrimary },
+  statLabel: { ...typography.caption, color: colors.textMuted },
+  statDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: colors.border,
+  },
+  sectionLabel: {
+    ...typography.label,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    marginTop: spacing.xs,
+  },
+  vehicleRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  vehicleChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.elevated,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+  },
+  vehicleCount: { ...typography.h3, color: colors.textPrimary },
   reportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     marginTop: spacing.sm,
     backgroundColor: colors.elevated,
     borderRadius: radius.card,
     padding: spacing.md,
-    alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.border,
   },
-  reportBtnText: { ...typography.body, color: colors.textSecondary },
+  reportBtnText: { ...typography.bodyMedium, color: colors.success },
 });

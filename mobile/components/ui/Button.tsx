@@ -1,44 +1,84 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle } from 'react-native';
-import { colors, radius, typography } from '../../constants/theme';
+import { Text, StyleSheet, ActivityIndicator, ViewStyle } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors, gradients, radius, shadows, typography } from '../../constants/theme';
+import { PressableScale } from './PressableScale';
 
 interface ButtonProps {
   label: string;
   onPress: () => void;
-  variant?: 'primary' | 'danger' | 'ghost';
+  variant?: 'primary' | 'danger' | 'ghost' | 'accent';
   loading?: boolean;
   disabled?: boolean;
   style?: ViewStyle;
+  icon?: React.ReactNode;
 }
 
-export function Button({ label, onPress, variant = 'primary', loading, disabled, style }: ButtonProps) {
-  const bg = variant === 'primary' ? colors.primary : variant === 'danger' ? colors.danger : 'transparent';
-  const border = variant === 'ghost' ? colors.border : 'transparent';
+export function Button({ label, onPress, variant = 'primary', loading, disabled, style, icon }: ButtonProps) {
+  if (variant === 'ghost') {
+    return (
+      <PressableScale onPress={onPress} disabled={disabled || loading} style={style}>
+        <LinearGradient
+          colors={['transparent', 'transparent']}
+          style={[styles.base, styles.ghost]}
+        >
+          {loading ? (
+            <ActivityIndicator color={colors.primaryLight} size="small" />
+          ) : (
+            <Text style={[styles.label, { color: colors.primaryLight }]}>{label}</Text>
+          )}
+        </LinearGradient>
+      </PressableScale>
+    );
+  }
+
+  const gradientColors = variant === 'danger'
+    ? gradients.danger
+    : variant === 'accent'
+    ? gradients.accent
+    : gradients.primary;
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={disabled || loading}
-      style={[styles.base, { backgroundColor: bg, borderColor: border, borderWidth: variant === 'ghost' ? 1 : 0 }, style]}
-      activeOpacity={0.8}
-    >
-      {loading ? (
-        <ActivityIndicator color={colors.textPrimary} size="small" />
-      ) : (
-        <Text style={styles.label}>{label}</Text>
-      )}
-    </TouchableOpacity>
+    <PressableScale onPress={onPress} disabled={disabled || loading} style={style}>
+      <LinearGradient
+        colors={gradientColors as any}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.base, shadows.md, disabled && styles.disabled]}
+      >
+        {loading ? (
+          <ActivityIndicator color={colors.textPrimary} size="small" />
+        ) : (
+          <>
+            {icon}
+            <Text style={styles.label}>{label}</Text>
+          </>
+        )}
+      </LinearGradient>
+    </PressableScale>
   );
 }
 
 const styles = StyleSheet.create({
   base: {
     borderRadius: radius.pill,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
+    paddingVertical: 16,
+    paddingHorizontal: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 50,
+    minHeight: 54,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  ghost: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  disabled: {
+    opacity: 0.5,
   },
   label: {
     ...typography.h3,
