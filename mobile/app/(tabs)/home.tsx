@@ -24,6 +24,7 @@ import { eventColors } from '../../constants/theme';
 import { EventMarker } from '../../components/map/EventMarker';
 import { EventDetailSheet } from '../../components/map/EventDetailSheet';
 import { SearchBar } from '../../components/map/SearchBar';
+import { darkMapStyle } from '../../constants/mapStyle';
 
 const FILTER_OPTIONS: { key: EventType | 'all'; label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }[] = [
   { key: 'all', label: 'All', icon: 'layers-outline' },
@@ -125,7 +126,7 @@ export default function HomeScreen() {
         initialRegion={region}
         showsUserLocation
         showsMyLocationButton={false}
-        // customMapStyle={darkMapStyle} // Removed for clean light theme
+        customMapStyle={darkMapStyle}
         onRegionChangeComplete={setRegion}
       >
         {filteredEvents.map((event) => (
@@ -135,7 +136,7 @@ export default function HomeScreen() {
 
       {/* Top Gradient Overlay for seamless blend */}
       <LinearGradient
-        colors={['rgba(255,255,255,0.9)', 'transparent']}
+        colors={['rgba(250,250,247,0.95)', 'rgba(250,250,247,0.55)', 'transparent']}
         style={styles.topGradient}
         pointerEvents="none"
       />
@@ -258,15 +259,6 @@ export default function HomeScreen() {
   );
 }
 
-const darkMapStyle = [
-  { elementType: 'geometry', stylers: [{ color: '#1d1145' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#8ec3b9' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#1a3646' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#38414e' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#212a37' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0e1626' }] },
-];
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   map: { flex: 1 },
@@ -285,7 +277,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.88)',
+    borderColor: 'rgba(255,255,255,0.12)',
     ...shadows.md,
   },
   headerBlur: {
@@ -339,7 +331,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.86)',
+    borderColor: 'rgba(255,255,255,0.10)',
     ...shadows.sm,
   },
   filterBlur: {
@@ -372,7 +364,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.9)',
+    borderColor: 'rgba(255,255,255,0.12)',
     ...shadows.md,
   },
   locationBtnInner: {

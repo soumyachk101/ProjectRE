@@ -39,11 +39,19 @@ export default function HistoryScreen() {
   const totalEvents = trips.reduce((a, t) => a + (t.event_count ?? 0), 0);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <LinearGradient colors={gradients.aurora as any} style={StyleSheet.absoluteFill} />
+      <View style={styles.orbOne} />
+      <SafeAreaView style={{ flex: 1 }}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>My Trips</Text>
-        <MaterialCommunityIcons name="history" size={24} color={colors.textMuted} />
+        <View>
+          <Text style={styles.eyebrow}>YOUR JOURNEYS</Text>
+          <Text style={styles.title}>My Trips</Text>
+        </View>
+        <View style={styles.headerIcon}>
+          <MaterialCommunityIcons name="history" size={20} color={colors.accent} />
+        </View>
       </View>
 
       {/* Contribution banner */}
@@ -55,7 +63,7 @@ export default function HistoryScreen() {
             end={{ x: 1, y: 1 }}
             style={[styles.banner, shadows.md]}
           >
-            <MaterialCommunityIcons name="shield-star" size={28} color="rgba(255,255,255,0.9)" />
+            <MaterialCommunityIcons name="shield-star" size={28} color="rgba(255,255,255,0.12)" />
             <View style={styles.bannerText}>
               <Text style={styles.bannerTitle}>{totalEvents} events mapped</Text>
               <Text style={styles.bannerSub}>Keep riding to improve road safety</Text>
@@ -97,12 +105,33 @@ export default function HistoryScreen() {
           )}
         />
       )}
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
+  orbOne: {
+    position: 'absolute',
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: 'rgba(47,72,88,0.08)',
+    top: -100,
+    right: -120,
+  },
+  eyebrow: { ...typography.label, color: colors.accent, marginBottom: 2 },
+  headerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: 'rgba(47,72,88,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(47,72,88,0.18)',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

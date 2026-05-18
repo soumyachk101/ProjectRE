@@ -10,6 +10,7 @@ import { EventType } from '../../types';
 import { api } from '../../services/api';
 import { colors, gradients, spacing, typography, radius, shadows, eventColors } from '../../constants/theme';
 import { Button } from '../../components/ui/Button';
+import { darkMapStyle } from '../../constants/mapStyle';
 
 const EVENT_TYPES: { key: EventType; icon: keyof typeof MaterialCommunityIcons.glyphMap; label: string }[] = [
   { key: 'pothole', icon: 'circle-off-outline', label: 'Pothole' },
@@ -73,6 +74,7 @@ export default function ReportScreen() {
         ref={mapRef}
         style={styles.map}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+        customMapStyle={darkMapStyle}
         showsUserLocation
         onPress={handleMapPress}
       >
@@ -84,11 +86,25 @@ export default function ReportScreen() {
         )}
       </MapView>
 
+      <LinearGradient
+        colors={['rgba(250,250,247,0.95)', 'rgba(250,250,247,0.5)', 'transparent']}
+        style={styles.topGradient}
+        pointerEvents="none"
+      />
+
       {/* Header */}
       <View style={styles.headerWrap}>
-        <BlurView intensity={40} tint="light" style={styles.headerBlur}>
-          <Text style={styles.headerTitle}>Report Issue</Text>
-          <Text style={styles.headerSub}>Tap map to place pin, select type, submit</Text>
+        <BlurView intensity={90} tint="light" style={styles.headerBlur}>
+          <View style={styles.headerRow}>
+            <View style={styles.headerIcon}>
+              <MaterialCommunityIcons name="map-marker-plus" size={20} color={colors.accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.headerEyebrow}>COMMUNITY REPORT</Text>
+              <Text style={styles.headerTitle}>Report an issue</Text>
+              <Text style={styles.headerSub}>Tap map to drop a pin, then choose a type</Text>
+            </View>
+          </View>
         </BlurView>
       </View>
 
@@ -121,14 +137,17 @@ export default function ReportScreen() {
       {/* Submit button */}
       <View style={styles.submitWrap}>
         {submitted ? (
-          <Animated.View entering={FadeInDown} style={styles.successBanner}>
-            <MaterialCommunityIcons name="check-circle" size={20} color={colors.success} />
-            <Text style={styles.successText}>Report submitted!</Text>
+          <Animated.View entering={FadeInDown} style={[styles.successBanner, shadows.md]}>
+            <View style={styles.successIcon}>
+              <MaterialCommunityIcons name="check" size={16} color="#fff" />
+            </View>
+            <Text style={styles.successText}>Report submitted</Text>
           </Animated.View>
         ) : (
           <Button
-            label={pinLocation ? 'Submit Report' : 'Tap map to place pin'}
+            label={pinLocation ? (selectedType ? 'Submit Report' : 'Choose a type') : 'Tap map to place pin'}
             onPress={handleSubmit}
+            variant="accent"
             loading={submitting}
             disabled={!pinLocation || !selectedType}
             icon={<MaterialCommunityIcons name="send" size={18} color="#fff" />}
@@ -142,6 +161,13 @@ export default function ReportScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { flex: 1 },
+  topGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 180,
+  },
   headerWrap: {
     position: 'absolute',
     top: 50,
@@ -150,26 +176,42 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255,255,255,0.12)',
+    ...shadows.md,
   },
   headerBlur: {
     padding: spacing.md,
+    backgroundColor: colors.glass,
   },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  headerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(47,72,88,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(47,72,88,0.18)',
+  },
+  headerEyebrow: { ...typography.label, color: colors.accent, marginBottom: 2 },
   headerTitle: { ...typography.h2, color: colors.textPrimary },
   headerSub: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
   typeWrap: {
     position: 'absolute',
-    top: 120,
+    top: 144,
     left: spacing.md,
     right: spacing.md,
     borderRadius: radius.pill,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255,255,255,0.10)',
+    ...shadows.sm,
   },
   typeBlur: {
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
+    backgroundColor: colors.glass,
   },
   typeRow: {
     flexDirection: 'row',
@@ -199,12 +241,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.surface,
+    gap: 10,
+    backgroundColor: colors.glass,
     borderRadius: radius.pill,
     paddingVertical: 16,
     borderWidth: 1,
-    borderColor: colors.success + '40',
+    borderColor: 'rgba(16,185,129,0.4)',
+  },
+  successIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.success,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   successText: { ...typography.h3, color: colors.success },
 });

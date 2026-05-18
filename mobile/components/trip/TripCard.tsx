@@ -73,7 +73,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: colors.glass,
   },
   accentStripe: {
     width: 4,
@@ -88,12 +89,14 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.primaryGlow,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,122,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0,122,255,0.14)',
   },
   info: {
     flex: 1,
@@ -101,13 +104,15 @@ const styles = StyleSheet.create({
   time: { ...typography.h3, color: colors.textPrimary },
   meta: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
   eventPill: {
-    backgroundColor: colors.primaryGlow,
+    backgroundColor: 'rgba(0,122,255,0.10)',
     borderRadius: radius.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(0,122,255,0.18)',
   },
   eventCount: {
     ...typography.label,
-    color: colors.primaryLight,
+    color: colors.accent,
   },
 });

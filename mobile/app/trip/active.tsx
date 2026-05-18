@@ -16,6 +16,7 @@ import { useEventsStore } from '../../store/events';
 import { PocCandidate } from '../../types';
 import { colors, gradients, spacing, typography, radius, shadows } from '../../constants/theme';
 import { StatCard } from '../../components/ui/StatCard';
+import { darkMapStyle } from '../../constants/mapStyle';
 
 interface RoutePoint {
   latitude: number;
@@ -146,54 +147,61 @@ export default function ActiveTripScreen() {
   if (!activeTrip) {
     return (
       <View style={styles.startContainer}>
-        <LinearGradient
-          colors={gradients.dark as any}
-          style={styles.startGradient}
-        >
-          <Animated.View entering={FadeInDown.duration(500)} style={styles.startContent}>
-            <Animated.View style={iconStyle}>
-              <LinearGradient
-                colors={gradients.primaryBright as any}
-                style={styles.startIconCircle}
-              >
-                <MaterialCommunityIcons name="navigation-variant" size={48} color="#fff" />
-              </LinearGradient>
-            </Animated.View>
-            <Text style={styles.startTitle}>Ready to ride?</Text>
-            <Text style={styles.startSub}>
-              RoadSense will detect road anomalies{'\n'}as you drive
-            </Text>
-
-            <View style={styles.startStats}>
-              <View style={styles.startStatItem}>
-                <MaterialCommunityIcons name="cellphone-arrow-down" size={20} color={colors.primaryLight} />
-                <Text style={styles.startStatText}>Keep phone{'\n'}steady</Text>
-              </View>
-              <View style={styles.startStatDivider} />
-              <View style={styles.startStatItem}>
-                <MaterialCommunityIcons name="map-marker-path" size={20} color={colors.primaryLight} />
-                <Text style={styles.startStatText}>Route auto{'\n'}tracked</Text>
-              </View>
-              <View style={styles.startStatDivider} />
-              <View style={styles.startStatItem}>
-                <MaterialCommunityIcons name="shield-check" size={20} color={colors.primaryLight} />
-                <Text style={styles.startStatText}>Data stays{'\n'}private</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity onPress={startTrip} disabled={starting} activeOpacity={0.85} style={{ width: '100%' }}>
-              <LinearGradient
-                colors={gradients.primaryBright as any}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={[styles.startBtn, shadows.lg]}
-              >
-                <MaterialCommunityIcons name="play" size={22} color="#fff" />
-                <Text style={styles.startBtnText}>{starting ? 'Starting...' : 'Start Trip'}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+        <LinearGradient colors={gradients.aurora as any} style={StyleSheet.absoluteFill} />
+        <View style={styles.orbOne} />
+        <View style={styles.orbTwo} />
+        <Animated.View entering={FadeInDown.duration(500)} style={styles.startContent}>
+          <Text style={styles.startEyebrow}>NEW SESSION</Text>
+          <Animated.View style={iconStyle}>
+            <LinearGradient
+              colors={gradients.accent as any}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.startIconCircle}
+            >
+              <MaterialCommunityIcons name="navigation-variant" size={48} color="#fff" />
+            </LinearGradient>
           </Animated.View>
-        </LinearGradient>
+          <Text style={styles.startTitle}>Ready to ride?</Text>
+          <Text style={styles.startSub}>
+            RoadSense will detect road anomalies{'\n'}as you drive
+          </Text>
+
+          <View style={styles.startStats}>
+            <View style={styles.startStatItem}>
+              <View style={styles.startStatIcon}>
+                <MaterialCommunityIcons name="cellphone-arrow-down" size={18} color={colors.accent} />
+              </View>
+              <Text style={styles.startStatText}>Keep phone{'\n'}steady</Text>
+            </View>
+            <View style={styles.startStatDivider} />
+            <View style={styles.startStatItem}>
+              <View style={styles.startStatIcon}>
+                <MaterialCommunityIcons name="map-marker-path" size={18} color={colors.accent} />
+              </View>
+              <Text style={styles.startStatText}>Route auto{'\n'}tracked</Text>
+            </View>
+            <View style={styles.startStatDivider} />
+            <View style={styles.startStatItem}>
+              <View style={styles.startStatIcon}>
+                <MaterialCommunityIcons name="shield-check" size={18} color={colors.success} />
+              </View>
+              <Text style={styles.startStatText}>Data stays{'\n'}private</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity onPress={startTrip} disabled={starting} activeOpacity={0.85} style={{ width: '100%' }}>
+            <LinearGradient
+              colors={gradients.accent as any}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.startBtn, shadows.lg]}
+            >
+              <MaterialCommunityIcons name="play" size={22} color="#fff" />
+              <Text style={styles.startBtnText}>{starting ? 'Starting…' : 'Start Trip'}</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
     );
   }
@@ -204,6 +212,7 @@ export default function ActiveTripScreen() {
         ref={mapRef}
         style={styles.map}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+        customMapStyle={darkMapStyle}
         showsUserLocation
         showsMyLocationButton={false}
       >
@@ -298,8 +307,26 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { flex: 1 },
   // Start screen
-  startContainer: { flex: 1 },
-  startGradient: { flex: 1 },
+  startContainer: { flex: 1, backgroundColor: colors.bg },
+  orbOne: {
+    position: 'absolute',
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: 'rgba(47,72,88,0.08)',
+    top: -60,
+    right: -120,
+  },
+  orbTwo: {
+    position: 'absolute',
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: 'rgba(47,72,88,0.08)',
+    bottom: -80,
+    left: -140,
+  },
+  startEyebrow: { ...typography.label, color: colors.accent, marginBottom: spacing.sm },
   startContent: {
     flex: 1,
     alignItems: 'center',
@@ -330,7 +357,15 @@ const styles = StyleSheet.create({
   startStatItem: {
     flex: 1,
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
+  },
+  startStatIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: 'rgba(47,72,88,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   startStatText: { ...typography.caption, color: colors.textSecondary, textAlign: 'center' },
   startStatDivider: { width: 1, height: 40, backgroundColor: colors.border },
@@ -375,7 +410,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
     borderRadius: radius.card,
     paddingVertical: 12,
     borderWidth: 1,

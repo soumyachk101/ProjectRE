@@ -1,128 +1,101 @@
+// Editorial Premium — warm parchment, ink black, deep slate teal signature, terracotta highlight.
+// Hand-picked palette inspired by editorial print design. No generic violet/blue.
+
 export const colors = {
-  bg: '#f5f5f7',
-  surface: '#ffffff',
-  surfaceLight: '#f7f7fb',
+  bg: '#f4f1ea',           // parchment cream
+  surface: '#ffffff',       // paper white
+  surfaceLight: '#faf7f0',
   elevated: '#ffffff',
-  border: '#e5e5ea',
-  borderLight: '#f2f2f7',
-  primary: '#111827',
-  primaryDark: '#030712',
-  primaryLight: '#374151',
-  primaryGlow: 'rgba(17, 24, 39, 0.08)',
-  accent: '#007aff',
-  accentLight: '#5ac8fa',
-  success: '#10b981',
-  successLight: '#34d399',
-  warning: '#ff9f0a',
-  danger: '#ff3b30',
-  dangerDark: '#d70015',
-  patch: '#ff7a1a',
-  textPrimary: '#111827',
-  textSecondary: '#4b5563',
-  textMuted: '#8e8e93',
-  glass: 'rgba(255, 255, 255, 0.78)',
-  glassLight: 'rgba(255, 255, 255, 0.56)',
-  overlay: 'rgba(17, 24, 39, 0.36)',
+  border: '#e3ddd0',        // warm beige
+  borderLight: '#ece6d6',
+  primary: '#1c1b18',       // warm near-black ink
+  primaryDark: '#0f0e0c',
+  primaryLight: '#3a382f',
+  primaryGlow: 'rgba(28,27,24,0.06)',
+  accent: '#2f4858',        // deep slate teal — signature
+  accentLight: '#577488',
+  success: '#5d7a5d',       // muted sage
+  successLight: '#85a085',
+  warning: '#b6803d',       // warm ochre
+  danger: '#a8392c',        // deep terracotta red
+  dangerDark: '#7a2920',
+  patch: '#c4533a',         // terracotta highlight
+  textPrimary: '#1c1b18',
+  textSecondary: '#5a564c',
+  textMuted: '#8a857a',
+  glass: 'rgba(255,255,255,0.78)',
+  glassLight: 'rgba(255,255,255,0.55)',
+  overlay: 'rgba(28,27,24,0.32)',
 } as const;
 
 export const gradients = {
-  primary: ['#111827', '#030712'] as const,
-  primaryBright: ['#1f2937', '#111827', '#030712'] as const,
-  accent: ['#5ac8fa', '#007aff', '#0a58ca'] as const,
-  danger: ['#ff6b64', '#ff3b30', '#d70015'] as const,
-  surface: ['#ffffff', '#fbfbfd', '#f2f2f7'] as const,
-  dark: ['#ffffff', '#f5f5f7'] as const,
-  card: ['rgba(255,255,255,0.98)', 'rgba(248,250,252,0.96)'] as const,
-  shimmer: ['transparent', 'rgba(17,24,39,0.045)', 'transparent'] as const,
-  aurora: ['#ffffff', '#eef6ff', '#f7f2ff'] as const,
+  primary: ['#3a382f', '#1c1b18', '#0f0e0c'] as const,
+  primaryBright: ['#4a4838', '#2c2a22', '#1c1b18'] as const,
+  accent: ['#577488', '#2f4858', '#1f3340'] as const,
+  accentSoft: ['rgba(47,72,88,0.10)', 'rgba(47,72,88,0.05)'] as const,
+  success: ['#85a085', '#5d7a5d', '#445b44'] as const,
+  danger: ['#d97560', '#a8392c', '#7a2920'] as const,
+  warning: ['#d9a878', '#b6803d', '#8a5e2a'] as const,
+  surface: ['#ffffff', '#faf7f0'] as const,
+  dark: ['#f4f1ea', '#ece6d6'] as const,
+  card: ['#ffffff', '#faf7f0'] as const,
+  shimmer: ['transparent', 'rgba(28,27,24,0.04)', 'transparent'] as const,
+  aurora: ['#faf7f0', '#f4f1ea', '#efe9da'] as const,
+  auroraWarm: ['#fbf4e8', '#f6ebd6', '#fbf4e8'] as const,
+  gold: ['#e0c285', '#b6803d', '#7a5520'] as const,
+  silver: ['#d8d2c4', '#9a9485', '#5a564c'] as const,
+  bronze: ['#d99878', '#c4533a', '#7a2920'] as const,
+  splash: ['#faf7f0', '#f4f1ea', '#efe9da'] as const,
 } as const;
 
 export const eventColors = {
-  speed_breaker: '#f59e0b',
-  pothole: '#ef4444',
-  broken_patch: '#f97316',
-  resolved: '#10b981',
-  anomaly: '#94a3b8',
+  speed_breaker: '#b6803d',  // ochre
+  pothole: '#a8392c',        // terracotta red
+  broken_patch: '#c4533a',   // terracotta
+  resolved: '#5d7a5d',       // sage
+  anomaly: '#5a564c',        // warm grey
 } as const;
 
 export const eventGradients = {
-  speed_breaker: ['#fbbf24', '#f59e0b', '#d97706'] as const,
-  pothole: ['#f87171', '#ef4444', '#dc2626'] as const,
-  broken_patch: ['#fb923c', '#f97316', '#ea580c'] as const,
-  resolved: ['#34d399', '#10b981', '#059669'] as const,
-  anomaly: ['#94a3b8', '#64748b', '#475569'] as const,
+  speed_breaker: ['#d9a878', '#b6803d', '#8a5e2a'] as const,
+  pothole: ['#d97560', '#a8392c', '#7a2920'] as const,
+  broken_patch: ['#dc8568', '#c4533a', '#8e3825'] as const,
+  resolved: ['#85a085', '#5d7a5d', '#445b44'] as const,
+  anomaly: ['#9a9485', '#5a564c', '#3a382f'] as const,
 } as const;
 
 export const severityColors = {
-  CRITICAL: '#dc2626',
-  HIGH: '#ef4444',
-  MEDIUM: '#f59e0b',
-  LOW: '#84cc16',
+  CRITICAL: '#a8392c',
+  HIGH: '#c4533a',
+  MEDIUM: '#b6803d',
+  LOW: '#5d7a5d',
 } as const;
 
 export const qualityColors = {
-  Excellent: '#10b981',
-  Good: '#34d399',
-  Fair: '#f59e0b',
-  Poor: '#f97316',
-  'Very Poor': '#ef4444',
+  Excellent: '#5d7a5d',
+  Good: '#85a085',
+  Fair: '#b6803d',
+  Poor: '#c4533a',
+  'Very Poor': '#a8392c',
 } as const;
 
-export const spacing = {
-  xs: 4,
-  sm: 8,
-  md: 16,
-  lg: 24,
-  xl: 32,
-  '2xl': 48,
-  '3xl': 64,
-} as const;
-
-export const radius = {
-  sm: 12,
-  card: 22,
-  modal: 30,
-  pill: 999,
-} as const;
+export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, '2xl': 48, '3xl': 64 } as const;
+export const radius = { sm: 8, card: 16, modal: 24, pill: 999 } as const;
 
 export const shadows = {
-  sm: {
-    shadowColor: '#111827',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  md: {
-    shadowColor: '#111827',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.09,
-    shadowRadius: 24,
-    elevation: 6,
-  },
-  lg: {
-    shadowColor: '#111827',
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.12,
-    shadowRadius: 34,
-    elevation: 10,
-  },
-  glow: (color: string) => ({
-    shadowColor: color,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
-  }),
+  sm: { shadowColor: '#1c1b18', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  md: { shadowColor: '#1c1b18', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 16, elevation: 4 },
+  lg: { shadowColor: '#1c1b18', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.10, shadowRadius: 24, elevation: 8 },
+  glow: (color: string) => ({ shadowColor: color, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 10, elevation: 4 }),
 } as const;
 
 export const typography = {
-  display: { fontSize: 36, fontWeight: '800' as const, letterSpacing: -1.1, color: '#111827' },
-  h1: { fontSize: 26, fontWeight: '800' as const, letterSpacing: -0.6, color: '#111827' },
-  h2: { fontSize: 20, fontWeight: '700' as const, letterSpacing: -0.2, color: '#111827' },
-  h3: { fontSize: 16, fontWeight: '700' as const, color: '#111827' },
-  body: { fontSize: 15, fontWeight: '400' as const, lineHeight: 22, color: '#4b5563' },
-  bodyMedium: { fontSize: 15, fontWeight: '600' as const, color: '#4b5563' },
-  caption: { fontSize: 12, fontWeight: '500' as const, color: '#8e8e93' },
-  label: { fontSize: 11, fontWeight: '700' as const, letterSpacing: 1.1, color: '#4b5563' },
+  display: { fontSize: 34, fontWeight: '700' as const, letterSpacing: -0.9, color: '#1c1b18' },
+  h1: { fontSize: 26, fontWeight: '700' as const, letterSpacing: -0.5, color: '#1c1b18' },
+  h2: { fontSize: 19, fontWeight: '600' as const, letterSpacing: -0.2, color: '#1c1b18' },
+  h3: { fontSize: 16, fontWeight: '600' as const, color: '#1c1b18' },
+  body: { fontSize: 14, fontWeight: '400' as const, lineHeight: 21, color: '#5a564c' },
+  bodyMedium: { fontSize: 14, fontWeight: '500' as const, color: '#3a382f' },
+  caption: { fontSize: 12, fontWeight: '400' as const, color: '#8a857a' },
+  label: { fontSize: 11, fontWeight: '600' as const, letterSpacing: 1.0, color: '#2f4858' },
 } as const;

@@ -46,6 +46,11 @@ export function EventDetailSheet({ event, onClose }: EventDetailSheetProps) {
         end={{ x: 1, y: 0 }}
         style={styles.headerStrip}
       />
+      <LinearGradient
+        colors={[gradient[0] + '14', 'transparent'] as any}
+        style={styles.headerGlow}
+        pointerEvents="none"
+      />
 
       <View style={styles.content}>
         <View style={styles.topRow}>
@@ -131,20 +136,31 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.modal,
     borderTopRightRadius: radius.modal,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
   },
   handle: {
     backgroundColor: colors.border,
-    width: 40,
-    height: 4,
-    borderRadius: 2,
+    width: 44,
+    height: 5,
+    borderRadius: 3,
     alignSelf: 'center',
-    marginTop: spacing.sm,
+    marginTop: spacing.sm + 2,
     marginBottom: spacing.xs,
   },
   headerStrip: {
-    height: 3,
+    height: 4,
     borderTopLeftRadius: radius.modal,
     borderTopRightRadius: radius.modal,
+  },
+  headerGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 80,
   },
   content: {
     padding: spacing.lg,
@@ -164,9 +180,11 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.elevated,
+    backgroundColor: colors.surfaceLight,
     borderRadius: radius.card,
     padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   statItem: {
     flex: 1,
@@ -196,9 +214,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: colors.elevated,
+    backgroundColor: colors.surfaceLight,
     borderRadius: radius.sm,
     padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   vehicleCount: { ...typography.h3, color: colors.textPrimary },
   actionRow: {
@@ -212,24 +232,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: colors.elevated,
+    backgroundColor: 'rgba(16,185,129,0.08)',
     borderRadius: radius.card,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(16,185,129,0.25)',
   },
-  reportBtnText: { ...typography.bodyMedium, color: colors.success },
+  reportBtnText: { ...typography.bodyMedium, color: colors.success, fontWeight: '700' },
   shareBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: colors.elevated,
+    backgroundColor: 'rgba(0,122,255,0.08)',
     borderRadius: radius.card,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(0,122,255,0.25)',
   },
-  shareBtnText: { ...typography.bodyMedium, color: colors.accent },
+  shareBtnText: { ...typography.bodyMedium, color: colors.accent, fontWeight: '700' },
 });

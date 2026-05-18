@@ -96,7 +96,7 @@ export function AlertOverlay() {
             </View>
             <Text style={styles.title}>{EVENT_LABELS[alert.type]}</Text>
             <View style={styles.distancePill}>
-              <MaterialCommunityIcons name="map-marker-distance" size={16} color="rgba(255,255,255,0.9)" />
+              <MaterialCommunityIcons name="map-marker-distance" size={16} color="rgba(255,255,255,0.12)" />
               <Text style={styles.distance}>{alert.distanceM} meters</Text>
             </View>
           </Animated.View>

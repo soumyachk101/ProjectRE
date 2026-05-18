@@ -14,9 +14,11 @@ export default function TabsLayout() {
           borderTopWidth: 0,
           elevation: 0,
           position: 'absolute',
-          height: 70,
+          height: 78,
+          paddingBottom: 14,
+          paddingTop: 8,
         },
-        tabBarActiveTintColor: colors.primary,
+        tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: {
           fontSize: 11,
@@ -26,11 +28,12 @@ export default function TabsLayout() {
         },
         tabBarBackground: () => (
           <BlurView
-            intensity={50}
+            intensity={80}
             tint="light"
             style={StyleSheet.absoluteFill}
           >
             <View style={[StyleSheet.absoluteFill, styles.tabBarOverlay]} />
+            <View style={styles.tabBarTopHairline} />
           </BlurView>
         ),
       }}
@@ -78,31 +81,33 @@ export default function TabsLayout() {
 function TabIcon({ name, color, focused }: { name: keyof typeof MaterialCommunityIcons.glyphMap; color: string; focused: boolean }) {
   return (
     <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-      <MaterialCommunityIcons name={name} size={24} color={color} />
-      {focused && <View style={styles.activeDot} />}
+      <MaterialCommunityIcons name={name} size={focused ? 23 : 22} color={color} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   tabBarOverlay: {
-    backgroundColor: 'rgba(255, 255, 255, 0.75)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0, 0, 0, 0.05)',
+    backgroundColor: 'rgba(255, 255, 255, 0.78)',
+  },
+  tabBarTopHairline: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(0, 0, 0, 0.06)',
   },
   iconWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 6,
+    width: 48,
+    height: 32,
+    borderRadius: 16,
   },
   iconWrapActive: {
-    // subtle active indicator handled by dot
-  },
-  activeDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.primary,
-    marginTop: 4,
+    backgroundColor: 'rgba(47, 72, 88, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(47, 72, 88, 0.22)',
   },
 });
