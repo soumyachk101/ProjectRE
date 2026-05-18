@@ -21,14 +21,15 @@ It generates a living, geo-tagged road quality map designed for commuters, logis
 2. [System Architecture](#%EF%B8%8F-system-architecture)
 3. [Algorithmic & ML Core](#-algorithmic--ml-core)
 4. [Tech Stack](#-tech-stack)
-5. [Repository Structure](#-repository-structure)
-6. [Getting Started & Installation](#-getting-started--installation)
+5. [Agent Skills & Automation](#-agent-skills--automation)
+6. [Repository Structure](#-repository-structure)
+7. [Getting Started & Installation](#-getting-started--installation)
    - [Infrastructure Setup (Docker Compose)](#1-infrastructure-setup-docker-compose)
    - [Express Backend Setup](#2-express-backend-setup)
    - [Python ML Microservice Setup](#3-python-ml-microservice-setup)
    - [Mobile Client Setup (React Native + Expo)](#4-mobile-client-setup-react-native-expo)
-7. [API Cheat Sheet](#-api-cheat-sheet)
-8. [Documentation Index](#-documentation-index)
+8. [API Cheat Sheet](#-api-cheat-sheet)
+9. [Documentation Index](#-documentation-index)
 
 ---
 
@@ -153,6 +154,17 @@ To geo-localize events and prevent duplicate reporting, a k-medoids algorithm gr
 
 ---
 
+## 🤖 Agent Skills & Automation
+
+This repository incorporates built-in automation and guidelines for AI Agents, structured via **Matt Pocock's Skills** framework. This ensures coding assistants contextually understand the codebase and architectural constraints out-of-the-box.
+
+*   **`.agents/skills/`**: Contains active workflows and system prompts.
+    *   `setup-matt-pocock-skills`: Bootstraps domain rules, project-level triage labels, and issue tracker synchronization.
+    *   `design-system`: Enforces the premium, light-mode, and glassmorphic UI/UX standards specifically for the `mobile` React Native app.
+*   **`.openclaude/`**: Stores localized AI configuration to persist context for coding sessions.
+
+---
+
 ## 📁 Repository Structure
 
 ```
@@ -202,6 +214,8 @@ RE Project/
 │   ├── store/                     # Zustand state hooks
 │   └── constants/                 # UI system tokens (colors, gradients, typography)
 │
+├── .agents/                       # AI Agent Skills (Matt Pocock Skills) & Workflows
+├── .openclaude/                   # Claude AI localized context settings
 ├── Docs/                          # Scientific & Technical specs
 └── docker-compose.yml             # PostgreSQL/PostGIS, Redis, MinIO
 ```
