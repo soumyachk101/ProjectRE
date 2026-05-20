@@ -21,6 +21,9 @@
     "production": {
       "android": {
         "autoIncrement": true
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://roadsense-api.onrender.com/api/v1"
       }
     }
   },
