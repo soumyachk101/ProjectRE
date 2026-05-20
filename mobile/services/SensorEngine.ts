@@ -61,6 +61,7 @@ interface SensorEngineOptions {
   placement: Placement;
   onPocDetected: (poc: PocCandidate) => void;
   onFlush: (pocs: PocCandidate[]) => Promise<void>;
+  onSensorData?: (data: { x: number; y: number; z: number }) => void;
 }
 
 export class SensorEngine {
@@ -69,6 +70,7 @@ export class SensorEngine {
   private placement: Placement;
   private onPocDetected: (poc: PocCandidate) => void;
   private onFlush: (pocs: PocCandidate[]) => Promise<void>;
+  private onSensorData?: (data: { x: number; y: number; z: number }) => void;
 
   private pocBuffer: PocCandidate[] = [];
   private zHistory: number[] = [];
@@ -93,6 +95,7 @@ export class SensorEngine {
     this.placement = opts.placement;
     this.onPocDetected = opts.onPocDetected;
     this.onFlush = opts.onFlush;
+    this.onSensorData = opts.onSensorData;
   }
 
   async start(): Promise<void> {
@@ -128,7 +131,12 @@ export class SensorEngine {
     // Don't detect when stationary — per AI_INSTRUCTIONS §10
     if (this.currentSpeed < 5) return;
 
-    const [, , az_v] = autoOrient(ax, ay, az);
+    const [ax_v, ay_v, az_v] = autoOrient(ax, ay, az);
+
+    // Call callback throttled to avoid blocking UI thread (every 10 samples, ~66ms)
+    if (this.onSensorData && this.sampleCount % 10 === 0) {
+      this.onSensorData({ x: ax_v, y: ay_v, z: az_v });
+    }
 
     // Low-pass filter — extract vertical component
     this.lpfValue = this.LPF_ALPHA * this.lpfValue + (1 - this.LPF_ALPHA) * az_v;

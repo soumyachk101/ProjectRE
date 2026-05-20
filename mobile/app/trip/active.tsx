@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { Audio } from 'expo-av';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { api } from '../../services/api';
@@ -31,6 +32,34 @@ export default function ActiveTripScreen() {
 
   const [route, setRoute] = useState<RoutePoint[]>([]);
   const [starting, setStarting] = useState(false);
+
+  // Live telemetry features
+  const [liveSensors, setLiveSensors] = useState({ x: 0, y: 0, z: 0 });
+  const [liveCoords, setLiveCoords] = useState({ latitude: 0, longitude: 0 });
+  const [liveSpeed, setLiveSpeed] = useState(0);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [recentDetections, setRecentDetections] = useState<{ id: string; type: string; time: string }[]>([]);
+
+  const soundEnabledRef = useRef(true);
+  useEffect(() => {
+    soundEnabledRef.current = soundEnabled;
+  }, [soundEnabled]);
+
+  const playAlertSound = async (eventType: string) => {
+    try {
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: 'https://www.soundjay.com/buttons/sounds/button-10.mp3' }
+      );
+      await sound.playAsync();
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          sound.unloadAsync();
+        }
+      });
+    } catch (e) {
+      console.log('Error playing sound:', e);
+    }
+  };
 
   const activeTrip = useTripStore((s) => s.activeTrip);
   const setActiveTrip = useTripStore((s) => s.setActiveTrip);
@@ -72,10 +101,21 @@ export default function ActiveTripScreen() {
     incrementEvents();
     const eventType = poc.z_value < 0 ? 'pothole' : 'speed_breaker';
     setLastEvent(eventType);
+
+    const id = Math.random().toString(36).substring(7);
+    setRecentDetections((prev) => [
+      { id, type: eventType, time: new Date().toLocaleTimeString() },
+      ...prev.slice(0, 4)
+    ]);
+
     if (eventType === 'pothole') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } else {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
+    if (soundEnabledRef.current) {
+      playAlertSound(eventType);
     }
   }, []);
 
@@ -84,12 +124,43 @@ export default function ActiveTripScreen() {
     pocBufferRef.current.push(...pocs);
   }, []);
 
+  const handleManualReport = async (type: 'pothole' | 'speed_breaker' | 'broken_patch') => {
+    try {
+      const loc = await Location.getCurrentPositionAsync({});
+      await api.events.report({ event_type: type, lat: loc.coords.latitude, lng: loc.coords.longitude });
+      incrementEvents();
+      setLastEvent(type);
+
+      const id = Math.random().toString(36).substring(7);
+      setRecentDetections((prev) => [
+        { id, type, time: `${new Date().toLocaleTimeString()} (Confirmed)` },
+        ...prev.slice(0, 4)
+      ]);
+
+      if (type === 'pothole') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      } else {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+
+      if (soundEnabledRef.current) {
+        playAlertSound(type);
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message ?? 'Failed to report event');
+    }
+  };
+
   const startTrip = async () => {
     setStarting(true);
     try {
       const vehicleType = (await SecureStore.getItemAsync('vehicleType')) as VehicleType ?? 'two_wheeler';
       const placement = (await SecureStore.getItemAsync('placement')) as Placement ?? 'mounter';
       const loc = await Location.getCurrentPositionAsync({});
+
+      setLiveCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+      const speedMs = loc.coords.speed ?? 0;
+      setLiveSpeed(Math.max(0, speedMs * 3.6));
 
       const { data: trip } = await api.trips.create(vehicleType, placement);
       setActiveTrip(trip);
@@ -100,6 +171,9 @@ export default function ActiveTripScreen() {
         placement,
         onPocDetected: handlePocDetected,
         onFlush: handleFlush,
+        onSensorData: (data) => {
+          setLiveSensors(data);
+        }
       });
       engineRef.current = engine;
       await engine.start();
@@ -112,6 +186,9 @@ export default function ActiveTripScreen() {
         (loc) => {
           const point = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
           setRoute((r) => [...r, point]);
+          setLiveCoords(point);
+          const speedMs = loc.coords.speed ?? 0;
+          setLiveSpeed(Math.max(0, speedMs * 3.6));
           mapRef.current?.animateToRegion({ ...point, latitudeDelta: 0.01, longitudeDelta: 0.01 });
         }
       );
@@ -239,17 +316,81 @@ export default function ActiveTripScreen() {
         </BlurView>
       </View>
 
+      {/* Real-time Telemetry & Confirmations Feed */}
+      <View style={styles.telemetryWrap}>
+        <BlurView intensity={80} tint="light" style={styles.telemetryBlur}>
+          <View style={styles.telemetryHeader}>
+            <Text style={styles.telemetryTitle}>Live Telemetry</Text>
+            <TouchableOpacity 
+              style={[styles.soundBtn, soundEnabled && styles.soundBtnActive]} 
+              onPress={() => setSoundEnabled(!soundEnabled)}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons 
+                name={soundEnabled ? "volume-high" : "volume-off"} 
+                size={16} 
+                color={soundEnabled ? colors.success : colors.textMuted} 
+              />
+              <Text style={[styles.soundText, { color: soundEnabled ? colors.success : colors.textMuted }]}>
+                {soundEnabled ? "Sound ON" : "Sound OFF"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.telemetryGrid}>
+            <View style={styles.telemetryCol}>
+              <Text style={styles.telemetryLabel}>X Force (g)</Text>
+              <Text style={styles.telemetryValue}>{liveSensors.x.toFixed(3)}</Text>
+            </View>
+            <View style={styles.telemetryDivider} />
+            <View style={styles.telemetryCol}>
+              <Text style={styles.telemetryLabel}>Y Force (g)</Text>
+              <Text style={styles.telemetryValue}>{liveSensors.y.toFixed(3)}</Text>
+            </View>
+            <View style={styles.telemetryDivider} />
+            <View style={styles.telemetryCol}>
+              <Text style={styles.telemetryLabel}>Z Force (g)</Text>
+              <Text style={styles.telemetryValue}>{liveSensors.z.toFixed(3)}</Text>
+            </View>
+          </View>
+
+          <View style={styles.telemetryDetails}>
+            <View style={styles.detailRow}>
+              <MaterialCommunityIcons name="speedometer" size={16} color={colors.primary} />
+              <Text style={styles.detailText}>Speed: <Text style={styles.detailHighlight}>{liveSpeed.toFixed(1)} km/h</Text></Text>
+            </View>
+            <View style={styles.detailRow}>
+              <MaterialCommunityIcons name="earth" size={16} color={colors.accent} />
+              <Text style={styles.detailText}>Coords: <Text style={styles.detailHighlight}>{liveCoords.longitude.toFixed(5)}, {liveCoords.latitude.toFixed(5)}</Text></Text>
+            </View>
+          </View>
+
+          {recentDetections.length > 0 && (
+            <View style={styles.feedContainer}>
+              <Text style={styles.feedTitle}>Session Confirmations & Detections</Text>
+              {recentDetections.map((det) => (
+                <View key={det.id} style={styles.feedItem}>
+                  <MaterialCommunityIcons 
+                    name={det.type === 'pothole' ? "circle-off-outline" : det.type === 'speed_breaker' ? "alert-circle" : "road-variant"} 
+                    size={14} 
+                    color={det.type === 'pothole' ? "#ef4444" : det.type === 'speed_breaker' ? "#f59e0b" : "#f97316"} 
+                  />
+                  <Text style={styles.feedItemText}>
+                    {det.type.replace('_', ' ').toUpperCase()} detected
+                  </Text>
+                  <Text style={styles.feedItemTime}>{det.time}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </BlurView>
+      </View>
+
       {/* Quick report buttons */}
       <View style={styles.quickReportWrap}>
         <TouchableOpacity
           style={styles.quickReportBtn}
-          onPress={async () => {
-            const loc = await Location.getCurrentPositionAsync({});
-            await api.events.report({ event_type: 'pothole', lat: loc.coords.latitude, lng: loc.coords.longitude });
-            incrementEvents();
-            setLastEvent('pothole');
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          }}
+          onPress={() => handleManualReport('pothole')}
           activeOpacity={0.8}
         >
           <MaterialCommunityIcons name="circle-off-outline" size={22} color="#ef4444" />
@@ -257,13 +398,7 @@ export default function ActiveTripScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.quickReportBtn}
-          onPress={async () => {
-            const loc = await Location.getCurrentPositionAsync({});
-            await api.events.report({ event_type: 'speed_breaker', lat: loc.coords.latitude, lng: loc.coords.longitude });
-            incrementEvents();
-            setLastEvent('speed_breaker');
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          }}
+          onPress={() => handleManualReport('speed_breaker')}
           activeOpacity={0.8}
         >
           <MaterialCommunityIcons name="alert-circle" size={22} color="#f59e0b" />
@@ -271,13 +406,7 @@ export default function ActiveTripScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.quickReportBtn}
-          onPress={async () => {
-            const loc = await Location.getCurrentPositionAsync({});
-            await api.events.report({ event_type: 'broken_patch', lat: loc.coords.latitude, lng: loc.coords.longitude });
-            incrementEvents();
-            setLastEvent('broken_patch');
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          }}
+          onPress={() => handleManualReport('broken_patch')}
           activeOpacity={0.8}
         >
           <MaterialCommunityIcons name="road-variant" size={22} color="#f97316" />
@@ -433,4 +562,128 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   endBtnText: { ...typography.h2, color: '#fff' },
+  telemetryWrap: {
+    position: 'absolute',
+    top: 175,
+    left: spacing.md,
+    right: spacing.md,
+    borderRadius: radius.card,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+    ...shadows.sm,
+  },
+  telemetryBlur: {
+    padding: spacing.md,
+  },
+  telemetryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  telemetryTitle: {
+    ...typography.label,
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  soundBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radius.sm,
+    backgroundColor: 'rgba(0,0,0,0.04)',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  soundBtnActive: {
+    backgroundColor: 'rgba(16,185,129,0.08)',
+    borderColor: 'rgba(16,185,129,0.2)',
+  },
+  soundText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  telemetryGrid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    paddingVertical: spacing.sm,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.xs,
+  },
+  telemetryCol: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  telemetryLabel: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+  },
+  telemetryValue: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    marginTop: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  telemetryDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: colors.border,
+  },
+  telemetryDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  detailText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  detailHighlight: {
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  feedContainer: {
+    marginTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+  },
+  feedTitle: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  feedItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+  },
+  feedItemText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  feedItemTime: {
+    fontSize: 10,
+    color: colors.textMuted,
+  },
 });

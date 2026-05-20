@@ -1,53 +1,127 @@
-# 🗺️ RoadSense AI — Crowdsourced Road Intelligence Platform
+<div align="center">
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](https://opensource.org/licenses/MIT)
-[![NodeJS](https://img.shields.io/badge/Backend-Node.js_/_Express-339933?style=flat&logo=node.js&logoColor=white)](https://nodejs.org)
-[![Prisma ORM](https://img.shields.io/badge/ORM-Prisma-2D3748?style=flat&logo=prisma&logoColor=white)](https://www.prisma.io)
-[![FastAPI](https://img.shields.io/badge/ML_Service-FastAPI-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![React Native](https://img.shields.io/badge/Mobile-React_Native_/_Expo-61DAFB?style=flat&logo=react&logoColor=black)](https://reactnative.dev)
-[![PostgreSQL 16](https://img.shields.io/badge/Database-PostgreSQL_/_PostGIS-336791?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org)
-[![Docker](https://img.shields.io/badge/Orchestration-Docker_Compose-2496ED?style=flat&logo=docker&logoColor=white)](https://www.docker.com)
+# 🛣️ RoadSense AI
 
-> **Scientific Foundation:** Built upon the research paper: *"Crowdsourcing from the True Crowd: Device, Vehicle, Road-Surface and Driving Independent Road Profiling from Smartphone Sensors"* — Alam et al., *Pervasive and Mobile Computing (2020)*.
+### *Your Phone. Every Pothole. One Map.*
 
-RoadSense AI is a smartphone-powered crowdsourced road intelligence platform. It runs passively in the background of everyday commutes to detect, classify, and geo-locate **potholes**, **speed-breakers**, and **broken road patches** in real time—completely independent of vehicle class (2-wheeler, 3-wheeler, 4-wheeler), device model, placement (pocket, dashboard, handlebar), or individual driving styles. 
+**A crowdsourced road intelligence platform that turns every smartphone into a passive road-quality sensor — detecting potholes, speed-breakers, and broken patches in real time, regardless of vehicle, device, or driver.**
 
-It generates a living, geo-tagged road quality map designed for commuters, logistics fleets, and civic engineers to prioritize repairs and navigate safely.
+<br/>
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-8b5cf6.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![Status](https://img.shields.io/badge/Status-Active_Development-22c55e?style=for-the-badge)]()
+[![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-ff69b4?style=for-the-badge)](#)
+[![Made With Love](https://img.shields.io/badge/Made_With-❤️_+_Physics-ef4444?style=for-the-badge)]()
+
+<br/>
+
+![Node.js](https://img.shields.io/badge/Backend-Node.js_/_Express-339933?style=flat-square&logo=node.js&logoColor=white)
+![Prisma ORM](https://img.shields.io/badge/ORM-Prisma-2D3748?style=flat-square&logo=prisma&logoColor=white)
+![FastAPI](https://img.shields.io/badge/ML_Service-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
+![React Native](https://img.shields.io/badge/Mobile-React_Native_/_Expo-61DAFB?style=flat-square&logo=react&logoColor=black)
+![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL_/_PostGIS-336791?style=flat-square&logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Orchestration-Docker_Compose-2496ED?style=flat-square&logo=docker&logoColor=white)
+![scikit-learn](https://img.shields.io/badge/ML-scikit--learn-F7931E?style=flat-square&logo=scikit-learn&logoColor=white)
+![TypeScript](https://img.shields.io/badge/Language-TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
+
+<br/>
+
+[**🎯 Features**](#-core-capabilities) ·
+[**🏗️ Architecture**](#%EF%B8%8F-system-architecture) ·
+[**🧮 The Science**](#-algorithmic--ml-core) ·
+[**🚀 Quick Start**](#-getting-started) ·
+[**📡 API**](#-api-cheat-sheet) ·
+[**📚 Docs**](#-documentation-index)
+
+</div>
+
+---
+
+<div align="center">
+
+### 📜 *Built on peer-reviewed research*
+
+> *"Crowdsourcing from the True Crowd: Device, Vehicle, Road-Surface and Driving Independent Road Profiling from Smartphone Sensors"*
+> — **Alam et al.**, *Pervasive and Mobile Computing (2020)*
+
+</div>
+
+---
+
+## 💡 Why RoadSense?
+
+Bad roads cost lives, fuel, vehicles, and time — and yet, the maps that guide us still pretend every street is smooth. RoadSense flips that paradigm. It runs **silently** in the background of everyday commutes, listening to your phone's accelerometer like a doctor listens to a heartbeat, and stitches millions of micro-detections into a **living, geo-tagged map of road health**.
+
+| 🚗 **For Commuters** | 🚚 **For Fleets** | 🏛️ **For Cities** |
+| :---: | :---: | :---: |
+| Get warned *before* you hit the pothole | Reduce vehicle wear & insurance claims | Prioritize repairs with data, not complaints |
+| Plan smoother routes | Optimize delivery scheduling | Quantify infrastructure quality block-by-block |
+| Earn leaderboard rank for your contributions | Audit road conditions on supply lanes | Verify contractor work with crowd evidence |
 
 ---
 
 ## 📖 Table of Contents
-1. [Core Capabilities](#-core-capabilities)
-2. [System Architecture](#%EF%B8%8F-system-architecture)
-3. [Algorithmic & ML Core](#-algorithmic--ml-core)
-4. [Tech Stack](#-tech-stack)
-5. [Agent Skills & Automation](#-agent-skills--automation)
-6. [Repository Structure](#-repository-structure)
-7. [Getting Started & Installation](#-getting-started--installation)
-   - [Infrastructure Setup (Docker Compose)](#1-infrastructure-setup-docker-compose)
-   - [Express Backend Setup](#2-express-backend-setup)
-   - [Python ML Microservice Setup](#3-python-ml-microservice-setup)
-   - [Mobile Client Setup (React Native + Expo)](#4-mobile-client-setup-react-native-expo)
-8. [API Cheat Sheet](#-api-cheat-sheet)
-9. [Documentation Index](#-documentation-index)
+
+<details>
+<summary><b>Click to expand</b></summary>
+
+1. [✨ Core Capabilities](#-core-capabilities)
+2. [🏗️ System Architecture](#%EF%B8%8F-system-architecture)
+3. [🧮 Algorithmic & ML Core](#-algorithmic--ml-core)
+4. [🛠️ Tech Stack](#%EF%B8%8F-tech-stack)
+5. [🤖 Agent Skills & Automation](#-agent-skills--automation)
+6. [📁 Repository Structure](#-repository-structure)
+7. [🚀 Getting Started](#-getting-started)
+8. [📡 API Cheat Sheet](#-api-cheat-sheet)
+9. [📚 Documentation Index](#-documentation-index)
+10. [👤 Author](#-author)
+
+</details>
 
 ---
 
 ## ✨ Core Capabilities
 
-*   **📱 Passive Background Sensing:** Runs silently during commutes utilizing standard accelerometer and gyroscope components, capturing road vibrations without requiring active screen time or manual tagging.
-*   **📐 Auto-Orientation Engine:** Normalizes three-axis coordinates into a standard vehicle reference frame using real-time Euler angle translations, mitigating device placement variance.
-*   **⚡ Speed-Adaptive Dynamic Thresholds:** Evaluates road surface irregularities against thresholds that automatically adapt to vehicle speed, eliminating static threshold calibration errors.
-*   **🤖 Server-Side ML Classification (J48 Decision Tree):** Evaluates candidate anomalies through a trained machine learning model utilizing context features (`Zt`, `Z_prev`, `Z_next`, speed, and time delta) to filter false positives and catalog event types.
-*   **📍 Robust k-Medoids Clustering:** Geo-localizes events by clustering nearby detections across multiple distinct trips. Discards isolated anomalies and locks true coordinates once a consensus threshold ($\lceil N_T / 3 \rceil + 1$) is achieved.
-*   **🔊 Real-Time Proximity Alerts:** Generates instant haptic pulses and full-screen warning panels to alert active drivers of oncoming anomalies.
-*   **📊 Gamification & Leaderboard:** Ranks top-contributing users based on trip coverage, events detected, and distance traveled to encourage user engagement.
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 📱 Passive Background Sensing
+Runs **silently** during commutes using only the standard accelerometer and gyroscope. No screen time, no manual tagging — just commute and contribute.
+
+### 📐 Auto-Orientation Engine
+Normalizes three-axis sensor data into a standard vehicle reference frame using **real-time Euler rotation**, so the system doesn't care whether your phone is in your pocket, on the dashboard, or strapped to a handlebar.
+
+### ⚡ Speed-Adaptive Thresholds
+Static thresholds fail at highway speeds. RoadSense **dynamically scales** detection thresholds with vehicle speed, eliminating false positives in stop-and-go and false negatives on open roads.
+
+### 🤖 ML Classification (J48 Decision Tree)
+A trained classifier ingests a **5-dimensional context vector** (`Zₜ`, `Z_prev`, `Z_next`, time-delta, speed) to filter out noise and tag each event as a **pothole**, **speed-breaker**, or **broken patch**.
+
+</td>
+<td width="50%" valign="top">
+
+### 📍 k-Medoids Spatial Clustering
+Geo-localizes events by clustering detections **across distinct trips**. A pothole is only "real" once `⌈N_T/3⌉ + 1` independent riders agree on the spot — eliminating phantom detections.
+
+### 🔊 Real-Time Proximity & Sound Alerts
+Instant **haptic pulses**, full-screen warning overlays, and **audible notification beeps** (via `expo-av`) alert active drivers to oncoming anomalies. Features a sound toggle directly on the active ride screen.
+
+### 📊 Live Telemetry Dashboard
+Real-time visual feed of oriented accelerometer forces ($X, Y, Z$ in g) throttled to 15Hz, live GPS coordinates (longitude/latitude), and current vehicle speed in km/h.
+
+### 📋 Session Confirmations Feed
+A live session log displaying the most recent road anomalies detected by the AI or manually confirmed/reported by the rider during active trips.
+
+</td>
+</tr>
+</table>
 
 ---
 
 ## 🏗️ System Architecture
 
-RoadSense AI uses a robust **dual-service architecture** where a Node.js/Express API handles user auth, CRUD, and telemetry ingestion, and a secondary Python microservice handles computationally expensive ML classifications and spatial clustering.
+RoadSense AI runs on a **dual-service architecture**: a Node.js/Express gateway handles user auth, CRUD, and telemetry ingestion, while a Python microservice handles heavy-lifting ML inference and spatial clustering. BullMQ keeps them decoupled and queueable.
 
 ```mermaid
 graph TD
@@ -56,275 +130,332 @@ graph TD
     classDef worker fill:#f97316,stroke:#fff,stroke-width:2px,color:#fff;
     classDef database fill:#336791,stroke:#fff,stroke-width:2px,color:#fff;
 
-    %% Client Layer
-    subgraph Client Layer [Clients]
+    subgraph Client_Layer [📱 Clients]
         RN[React Native Mobile App<br/>Expo Go]:::client
     end
 
-    %% Gateway
-    subgraph Node Gateway [Express Gateway]
+    subgraph Node_Gateway [🌐 Express Gateway]
         API[Express REST Server<br/>Port 8000]:::gateway
         BULL[BullMQ Queue Manager]:::gateway
     end
 
-    %% Workers
-    subgraph ML Pipeline [Python Service]
+    subgraph ML_Pipeline [🧠 Python ML Service]
         FAST[FastAPI ML Service<br/>Port 8001]:::worker
         DT[J48 Decision Tree Classifier]:::worker
         KM[k-Medoids Clustering Engine]:::worker
     end
 
-    %% Storage & Database
-    subgraph Database Layer [Storage & Database]
+    subgraph Database_Layer [💾 Storage & Database]
         DB[(PostgreSQL + PostGIS)]:::database
         REDIS[(Redis Broker & JWT)]:::database
         MINIO[(MinIO Object Storage)]:::database
     end
 
-    %% Connections
-    RN -- "1. Streams GPS & PoCs" --> API
-    API -- "2. Enqueues Ingest Job" --> BULL
-    BULL -- "3. Consumes Job" --> BULL
-    BULL -- "4. Posts to /classify" --> FAST
-    FAST -- "5. Run Euler & DT Model" --> DT
-    FAST -- "6. Group anomalies" --> KM
-    BULL -- "7. Upserts Events & Closes Trip" --> DB
-    
+    RN -- "① Streams GPS & PoCs" --> API
+    API -- "② Enqueues Ingest Job" --> BULL
+    BULL -- "③ Consumes Job" --> BULL
+    BULL -- "④ POST /classify" --> FAST
+    FAST -- "⑤ Euler + DT Model" --> DT
+    FAST -- "⑥ Group anomalies" --> KM
+    BULL -- "⑦ Upserts Events" --> DB
+
     API -- "Read/Write Users, Trips" --> DB
-    API -- "Read/Write Cache & OTP" --> REDIS
-    API -- "Stream raw sensor files" --> MINIO
+    API -- "Cache & OTP" --> REDIS
+    API -- "Raw sensor blobs" --> MINIO
 ```
+
+> **Why two services?** Node.js excels at I/O-bound work (auth, REST, WebSockets). Python dominates at vectorized math and ML inference. Why not have both?
 
 ---
 
 ## 🧮 Algorithmic & ML Core
 
-The project implements the exact algorithms laid out in the **RoadSurP** scientific paper.
+> *RoadSense implements the algorithms laid out in the **RoadSurP** paper — verbatim and verifiable.*
 
-### 1. Auto-Orientation Formula
-To translate raw accelerometer data ($a_x$, $a_y$, $a_z$) from the device's variable reference frame to the vehicle's frame ($a_{x\_v}$, $a_{y\_v}$, $a_{z\_v}$), Euler pitch ($\theta$) and roll ($\beta$) angles are calculated continuously:
+### ① Auto-Orientation Formula
+
+Raw accelerometer data (`aₓ`, `a_y`, `a_z`) is rotated from the **device's** variable reference frame into the **vehicle's** stable frame using continuously-computed Euler pitch (θ) and roll (β):
 
 $$\theta = \arctan2(a_y, a_z)$$
 
 $$\beta = \arctan2(-a_x, \sqrt{a_y^2 + a_z^2})$$
 
-Using these, the vertical component (the $Z$-axis of the vehicle frame, representing road surface displacement) is isolated:
+The vertical (Z-axis) component — the one that actually captures road displacement — is isolated as:
 
-$$a_{z\_v} = -a_x \sin(\beta) + a_y \cos(\beta) \sin(\theta) + a_z \cos(\beta) \cos(\theta)$$
+$$a_{z_v} = -a_x \sin(\beta) + a_y \cos(\beta) \sin(\theta) + a_z \cos(\beta) \cos(\theta)$$
 
-### 2. Speed-Adaptive Thresholds
-Static acceleration thresholds are inaccurate because high speed intensifies impact forces. RoadSense updates the vertical acceleration event threshold ($T_t$) dynamically based on average vehicle speed ($V$):
+### ② Speed-Adaptive Thresholds
 
-$$T_t = T_0 + (V - L) \times S \quad \text{if } V > B$$
+Static thresholds break above 40 km/h. RoadSense scales the vertical-acceleration trigger ($T_t$) with average vehicle speed ($V$):
 
-$$T_t = T_0 \quad \text{otherwise}$$
+$$T_t = \begin{cases} T_0 + (V - L) \cdot S & \text{if } V > B \\ T_0 & \text{otherwise} \end{cases}$$
 
-*   **$T_0$**: Base acceleration threshold depending on vehicle class (e.g., $1.08g$ for speed-breakers in 4-wheelers; $0.714g$ for potholes in 2-wheelers).
-*   **$B$**: Base speed point ($20.0 \text{ km/h}$).
-*   **$L$**: Lower adaptation limit ($20.0 \text{ km/h}$).
-*   **$S$**: Scaling factor ($0.3$ for speed-breakers; $-0.3$ for potholes, which require lower thresholds at higher speeds as gravity limits vertical falling speed).
+<div align="center">
 
-### 3. ML Feature Extraction & Classification
-Once a Point of Concern (PoC) passes the dynamic threshold, a $5$-dimensional feature vector is sent to the **J48 Decision Tree Classifier**:
+| Symbol | Meaning | Typical Value |
+| :---: | :--- | :---: |
+| `T₀` | Base threshold | `1.08g` (4-wheel speed-breaker) · `0.714g` (2-wheel pothole) |
+| `B` | Activation speed | `20.0 km/h` |
+| `L` | Lower adaptation limit | `20.0 km/h` |
+| `S` | Scaling factor | `+0.3` (breakers) · `−0.3` (potholes) |
+
+</div>
+
+### ③ ML Feature Vector → J48 Classifier
+
+Once a Point-of-Concern (PoC) clears the dynamic threshold, a **5-dimensional feature vector** is sent to the classifier:
 
 $$\vec{x} = \begin{bmatrix} Z_t & Z_{\text{next}} & Z_{\text{prev}} & T_p & S_p \end{bmatrix}$$
 
-*   **$Z_t$**: Maximum acceleration amplitude at the detection timestamp.
-*   **$Z_{\text{next}}$ / $Z_{\text{prev}}$**: Local peak amplitudes in the vertical direction within a time window $\Delta$ immediately after/before the event.
-*   **$T_p$**: Time elapsed since the immediate prior event (dense spikes point to *broken road patches*).
-*   **$S_p$**: Exact GPS-recorded vehicle speed at detection time.
+| Feature | What It Captures |
+| :---: | :--- |
+| **Zₜ** | Peak vertical acceleration at detection |
+| **Z_next** / **Z_prev** | Local peaks in a ±Δ window — reveals event shape |
+| **Tₚ** | Time since the last event — dense bursts ⇒ *broken patch* |
+| **Sₚ** | GPS-reported vehicle speed at the moment |
 
-### 4. k-Medoids Spatial Clustering
-To geo-localize events and prevent duplicate reporting, a k-medoids algorithm groups close coordinates together, choosing the actual median event as the center coordinate. Detections only lock as a `ConfirmedEvent` once a minimum threshold of $\lceil N_T / 3 \rceil + 1$ distinct rider trails agree on the spot.
+### ④ k-Medoids Spatial Clustering
+
+Detections are clustered around the **median** event coordinate (not the mean — medoids resist GPS noise). An event is only promoted to a **`ConfirmedEvent`** once:
+
+$$N_{\text{agreeing trips}} \geq \lceil N_T / 3 \rceil + 1$$
+
+This makes the system **provably resistant** to bad sensors, rogue users, and one-off road debris.
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology |
-|---|---|
-| **Mobile Client** | Expo SDK 53, React Native, TypeScript, Zustand, TanStack Query |
-| **Mobile Hardware** | `expo-sensors` (150Hz Accelerometer & Gyroscope), `expo-location` (GPS) |
-| **Animations & UI** | `react-native-reanimated`, `expo-blur` (glassmorphism), `expo-linear-gradient` |
-| **Express Gateway** | Node.js, Express, TypeScript, JWT Auths, `ioredis` |
-| **Database & ORM** | PostgreSQL 16 with PostGIS extensions, Prisma ORM |
-| **Worker Queue** | BullMQ backed by Redis |
-| **ML Microservice** | Python 3.11, FastAPI, scikit-learn, numpy, pandas, Uvicorn |
-| **Object Store** | MinIO S3 (storing high-frequency raw vibration logs) |
+<div align="center">
+
+| Layer | Tech |
+| :--- | :--- |
+| 📱 **Mobile Client** | Expo SDK 53 · React Native · TypeScript · Zustand · TanStack Query |
+| 📡 **Mobile Hardware** | `expo-sensors` (150Hz accel/gyro) · `expo-location` (GPS) |
+| 🎨 **UI & Animations** | `react-native-reanimated` · `expo-blur` (glassmorphism) · `expo-linear-gradient` |
+| 🌐 **API Gateway** | Node.js · Express · TypeScript · JWT · `ioredis` |
+| 🗄️ **Database** | PostgreSQL 16 · PostGIS · Prisma ORM |
+| 🔄 **Queue Worker** | BullMQ + Redis |
+| 🧠 **ML Service** | Python 3.11 · FastAPI · scikit-learn · NumPy · Pandas · Uvicorn |
+| 📦 **Object Store** | MinIO S3 (raw vibration blobs) |
+
+</div>
 
 ---
 
 ## 🤖 Agent Skills & Automation
 
-This repository incorporates built-in automation and guidelines for AI Agents, structured via **Matt Pocock's Skills** framework. This ensures coding assistants contextually understand the codebase and architectural constraints out-of-the-box.
+This repo ships **built-in automation for AI coding agents** through **Matt Pocock's Skills** framework — so any LLM that opens this project understands the architecture, design system, and conventions out of the box.
 
-*   **`.agents/skills/`**: Contains active workflows and system prompts.
-    *   `setup-matt-pocock-skills`: Bootstraps domain rules, project-level triage labels, and issue tracker synchronization.
-    *   `design-system`: Enforces the premium, light-mode, and glassmorphic UI/UX standards specifically for the `mobile` React Native app.
-*   **`.openclaude/`**: Stores localized AI configuration to persist context for coding sessions.
+- 🧠 **`.agents/skills/`** — Active workflows and system prompts
+  - `setup-matt-pocock-skills` — Bootstraps domain rules, triage labels, issue sync
+  - `design-system` — Enforces the premium glassmorphic UI/UX standards for the mobile app
+- ⚙️ **`.openclaude/`** — Localized AI configuration for persistent coding-session context
 
 ---
 
 ## 📁 Repository Structure
 
 ```
-RE Project/
-├── backend/
+RoadSense-AI/
+├── 📡 backend/
 │   ├── prisma/
-│   │   ├── schema.prisma          # 8 models (User, Trip, RoadEvent, ConfirmedEvent, etc.)
-│   │   └── migrations/            # PostGIS schema migrations
-│   ├── ml/                        # Python Machine Learning Microservice
-│   │   ├── service.py             # FastAPI entrypoint (port 8001)
-│   │   ├── classifier.py          # J48 Decision Tree pipeline + patch detection
-│   │   ├── clustering.py          # k-Medoids grouping & silhouette analysis
-│   │   ├── orientation.py         # Euler rotation math
-│   │   ├── threshold.py           # Speed-adaptive calibrations
-│   │   ├── train.py               # Model training script
-│   │   └── requirements.txt       
-│   └── src/                       # Node.js API Service
-│       ├── index.ts               # Express entrypoint (port 8000)
-│       ├── config.ts              # System configuration singleton
-│       ├── db.ts                  # Shared Prisma client
-│       ├── redis.ts               # Shared ioredis connector
-│       ├── lib/jwt.ts             # JWT Token handling
-│       ├── middleware/auth.ts     # requireAuth middleware
-│       ├── routes/                
-│       │   ├── auth.ts            # Registrations & OTP verifications
-│       │   ├── trips.ts           # Ingestion endpoints & POC payloads
-│       │   ├── events.ts          # Geoqueries, manual reports & RQI scores
-│       │   ├── users.ts           # User stats & profile ranks
-│       │   └── leaderboard.ts     # User contribution rankings
+│   │   ├── schema.prisma           # 8 models: User, Trip, RoadEvent, ConfirmedEvent, …
+│   │   └── migrations/             # PostGIS-aware schema migrations
+│   │
+│   ├── 🧠 ml/                       # Python ML microservice
+│   │   ├── service.py              # FastAPI entrypoint (:8001)
+│   │   ├── classifier.py           # J48 Decision Tree + patch detection
+│   │   ├── clustering.py           # k-Medoids + silhouette analysis
+│   │   ├── orientation.py          # Euler rotation math
+│   │   ├── threshold.py            # Speed-adaptive calibrations
+│   │   ├── train.py                # Model training script
+│   │   └── requirements.txt
+│   │
+│   └── 🌐 src/                      # Node.js API service
+│       ├── index.ts                # Express entrypoint (:8000)
+│       ├── config.ts               # System config singleton
+│       ├── db.ts                   # Shared Prisma client
+│       ├── redis.ts                # Shared ioredis client
+│       ├── lib/jwt.ts              # JWT signing & rotation
+│       ├── middleware/auth.ts      # requireAuth guard
+│       ├── routes/
+│       │   ├── auth.ts             # Registration & OTP
+│       │   ├── trips.ts            # Trip ingestion & PoC payloads
+│       │   ├── events.ts           # Geoqueries, reports, RQI
+│       │   ├── users.ts            # User stats & rank
+│       │   └── leaderboard.ts      # Contribution rankings
 │       └── services/
-│           └── queue.ts           # BullMQ ingestion worker & ML dispatcher
+│           └── queue.ts            # BullMQ worker & ML dispatcher
 │
-├── mobile/                        # React Native Mobile App
-│   ├── app/                       # Expo Router Views
-│   │   ├── onboarding/            # Selection of vehicle & phone placement
-│   │   ├── auth/                  # Phone & OTP verifications
-│   │   ├── (tabs)/                # Main Navigation (Map, Report, Trips, Profile)
-│   │   └── trip/                  # Active Trip tracker screen
-│   ├── components/                
-│   │   ├── ui/                    # Sleek premium Glassmorphic buttons & cards
-│   │   ├── map/                   # Markers, Bottom sheets, Quality Badges
-│   │   └── alert/                 # Full-screen Proximity overlay alarms
-│   ├── services/                  
-│   │   ├── api.ts                 # Axios API connector with JWT auto-refresh
-│   │   ├── SensorEngine.ts        # 150Hz physics telemetry engine
-│   │   └── cache.ts               # AsyncStorage client-side cache
-│   ├── store/                     # Zustand state hooks
-│   └── constants/                 # UI system tokens (colors, gradients, typography)
+├── 📱 mobile/                       # React Native client
+│   ├── app/                        # Expo Router views
+│   │   ├── onboarding/             # Vehicle & placement selection
+│   │   ├── auth/                   # Phone & OTP flows
+│   │   ├── (tabs)/                 # Map · Report · Trips · Profile
+│   │   └── trip/                   # Active-trip live tracker
+│   ├── components/
+│   │   ├── ui/                     # Premium glassmorphic primitives
+│   │   ├── map/                    # Markers, sheets, quality badges
+│   │   └── alert/                  # Full-screen proximity overlays
+│   ├── services/
+│   │   ├── api.ts                  # Axios + JWT auto-refresh
+│   │   ├── SensorEngine.ts         # 150Hz telemetry engine
+│   │   └── cache.ts                # AsyncStorage cache
+│   ├── store/                      # Zustand state
+│   └── constants/                  # Design tokens
 │
-├── .agents/                       # AI Agent Skills (Matt Pocock Skills) & Workflows
-├── .openclaude/                   # Claude AI localized context settings
-├── Docs/                          # Scientific & Technical specs
-└── docker-compose.yml             # PostgreSQL/PostGIS, Redis, MinIO
+├── 🤖 .agents/                      # Matt Pocock Skills & AI workflows
+├── ⚙️  .openclaude/                  # Claude AI context
+├── 📚 Docs/                         # Scientific & technical specs
+└── 🐳 docker-compose.yml            # Postgres/PostGIS · Redis · MinIO
 ```
 
 ---
 
-## 🚀 Getting Started & Installation
+## 🚀 Getting Started
 
-### Prerequisites
-Make sure you have:
-*   [Docker & Docker Compose](https://www.docker.com/products/docker-desktop)
-*   [Node.js v20+](https://nodejs.org)
-*   [Python 3.11+](https://www.python.org/downloads/)
-*   [Expo Go app](https://expo.dev/expo-go) on your physical Android/iOS test device
+### 📋 Prerequisites
+
+- 🐳 [Docker & Docker Compose](https://www.docker.com/products/docker-desktop)
+- 🟢 [Node.js v20+](https://nodejs.org)
+- 🐍 [Python 3.11+](https://www.python.org/downloads/)
+- 📱 [Expo Go app](https://expo.dev/expo-go) on a physical iOS / Android device
 
 ---
 
-### 1. Infrastructure Setup (Docker Compose)
-Launch the databases, queuing brokers, and object stores:
+### 1️⃣ Infrastructure — Docker Compose
+
+Spin up Postgres/PostGIS, Redis, and MinIO in one command:
+
 ```bash
-# Spin up PostgreSQL/PostGIS, Redis, and MinIO S3
 docker compose up -d
 ```
 
+> ✅ Verify everything is up with `docker compose ps` — you should see three healthy services.
+
 ---
 
-### 2. Express Backend Setup
-Create your env variables:
+### 2️⃣ Express Backend
+
 ```bash
 cd backend
 cp .env.example .env
-# Ensure DATABASE_URL, REDIS_URL, and MINIO credentials match your local docker setup
-```
+# Edit .env — set DATABASE_URL, REDIS_URL, MINIO_* to match your docker-compose values
 
-Install packages, run DB migrations, and launch the Express Server:
-```bash
 npm install
 npx prisma migrate dev
 npm run dev
 ```
-The Express Gateway will run on `http://localhost:8000`.
+
+🟢 Gateway live at **`http://localhost:8000`**
 
 ---
 
-### 3. Python ML Microservice Setup
-Navigate to the ML directory and prepare the Python environment:
+### 3️⃣ Python ML Microservice
+
 ```bash
 cd backend/ml
 python -m venv venv
-source venv/bin/activate   # On Windows use: venv\Scripts\activate
+source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-```
 
-Launch the ML FastAPI service:
-```bash
 python -m uvicorn service:app --port 8001
 ```
-The ML Service will run on `http://localhost:8001`.
+
+🟢 ML service live at **`http://localhost:8001`**
 
 ---
 
-### 4. Mobile Client Setup (React Native + Expo)
-Configure the local network API URL:
+### 4️⃣ Mobile Client (React Native + Expo)
+
 ```bash
 cd mobile
 cp .env.example .env
-# Set EXPO_PUBLIC_API_URL to your computer's local Wi-Fi IP address (e.g., http://192.168.1.100:8000/api/v1)
-```
+# Set EXPO_PUBLIC_API_URL to your machine's LAN IP:
+#   e.g.  http://192.168.1.100:8000/api/v1
 
-Install packages and boot the Metro server:
-```bash
 npm install
 npx expo start
 ```
-*   Scan the generated QR code in your terminal using the **Expo Go** application (Android) or the native Camera app (iOS).
-*   *Note: Ensure your phone and computer are on the exact same Wi-Fi network.*
+
+📲 Scan the QR code with **Expo Go** (Android) or the native **Camera app** (iOS).
+
+> ⚠️ **Important:** Your phone and computer must be on the **same Wi-Fi network**.
 
 ---
 
-## ⚡ API Cheat Sheet
+## 📡 API Cheat Sheet
 
-All routes must be prefixed with `/api/v1`. Bearer JWT tokens are required for authenticated routes.
+All routes are prefixed with `/api/v1`. Authenticated routes require a **Bearer JWT** in the `Authorization` header.
 
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| **POST** | `/auth/register` | Register or update user role/vehicle | No |
-| **POST** | `/auth/send-otp` | Trigger verification SMS code | No |
-| **POST** | `/auth/login` | Verify OTP code and return access & refresh JWTs | No |
-| **POST** | `/auth/refresh` | Re-generate expired access token via refresh token | No |
-| **POST** | `/trips` | Initialize a trip and return trip ID | Yes |
-| **PATCH** | `/trips/:id/end` | Finish trip; enqueues processing job | Yes |
-| **POST** | `/trips/:id/poc` | Batch upload detected candidate vibration coordinates | Yes |
-| **GET** | `/events` | Get confirmed anomalies within a coordinate radius | Yes |
-| **GET** | `/events/bbox` | Get confirmed anomalies within bounding box | Yes |
-| **POST** | `/events/report` | Manually tag a road anomaly | Yes |
-| **GET** | `/events/quality` | Fetch Road Quality Index (RQI) score (0-100) | Yes |
-| **GET** | `/users/me/stats` | Retrieve user total trips, distance and rank | Yes |
-| **GET** | `/leaderboard` | View top contributors across the platform | No |
-| **GET** | `/health` | Check core server status | No |
+<div align="center">
+
+### 🔐 Authentication
+
+| Method | Endpoint | Description |
+| :---: | :--- | :--- |
+| `POST` | `/auth/register` | Register or update user role / vehicle |
+| `POST` | `/auth/send-otp` | Trigger verification SMS |
+| `POST` | `/auth/login` | Verify OTP → return access + refresh JWTs |
+| `POST` | `/auth/refresh` | Rotate expired access token |
+
+### 🚗 Trips & Sensing
+
+| Method | Endpoint | Description | 🔒 |
+| :---: | :--- | :--- | :---: |
+| `POST` | `/trips` | Initialize a trip · returns trip ID | ✅ |
+| `PATCH` | `/trips/:id/end` | Finish trip · enqueues processing | ✅ |
+| `POST` | `/trips/:id/poc` | Batch upload candidate vibration coords | ✅ |
+
+### 📍 Events & Map
+
+| Method | Endpoint | Description | 🔒 |
+| :---: | :--- | :--- | :---: |
+| `GET` | `/events` | Confirmed anomalies within a radius | ✅ |
+| `GET` | `/events/bbox` | Confirmed anomalies within a bounding box | ✅ |
+| `POST` | `/events/report` | Manually tag a road anomaly | ✅ |
+| `GET` | `/events/quality` | Road Quality Index (0–100) | ✅ |
+
+### 👥 Users & Leaderboard
+
+| Method | Endpoint | Description | 🔒 |
+| :---: | :--- | :--- | :---: |
+| `GET` | `/users/me/stats` | Trips, distance, rank | ✅ |
+| `GET` | `/leaderboard` | Top contributors | ❌ |
+| `GET` | `/health` | Service health check | ❌ |
+
+</div>
 
 ---
 
-## 🗂️ Documentation Index
+## 📚 Documentation Index
 
-To explore the mathematical, spatial, and layout details of RoadSense AI, review the Docs suite:
-*   [Product Requirements Document (PRD)](Docs/PRD.md) - Deep dive into target users, success metrics, product vision, and functional scopes.
-*   [Technical Requirements Document (TRD)](Docs/TRD.md) - System specifications, PostGIS structures, API specifications, and worker pipeline configurations.
-*   [UI/UX Design Specifications](Docs/UIUX.md) - Color system tokens, layout structures, and accessibility standards.
-*   [AI Development Manual](Docs/AI_INSTRUCTIONS.md) - Rules for coding, algorithm constants, signal low-pass parameters, and test checklists.
+Dig deeper into the math, the specs, and the design system:
+
+| 📄 Doc | What's Inside |
+| :--- | :--- |
+| 📘 [**Product Requirements (PRD)**](Docs/PRD.md) | Target users, success metrics, product vision, functional scope |
+| 📗 [**Technical Requirements (TRD)**](Docs/TRD.md) | System specs, PostGIS schema, API contracts, worker pipelines |
+| 🎨 [**UI/UX Specifications**](Docs/UIUX.md) | Design tokens, layouts, accessibility standards |
+| 🤖 [**AI Development Manual**](Docs/AI_INSTRUCTIONS.md) | Coding rules, algorithm constants, low-pass filter params, test checklists |
 
 ---
-*Created by **Soumya Chakraborty** (`soumyachk101`) .*
+
+<div align="center">
+
+## 👤 Author
+
+### **Soumya Chakraborty**
+
+🐙 **GitHub:** [`@soumyachk101`](https://github.com/soumyachk101)
+
+<br/>
+
+---
+
+<sub>Built with ❤️ , physics, and a healthy distrust of static thresholds.</sub>
+
+<sub>⭐ **If RoadSense AI helped you, star the repo — it genuinely keeps the project alive.** ⭐</sub>
+
+</div>

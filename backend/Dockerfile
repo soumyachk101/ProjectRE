@@ -12,6 +12,6 @@ COPY . .
 RUN npm run build
 RUN npm prune --omit=dev
 
-EXPOSE 8000
+EXPOSE 8080
 
 CMD ["node", "dist/index.js"]
