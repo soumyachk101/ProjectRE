@@ -96,6 +96,8 @@ export default function ActiveTripScreen() {
   }));
 
   const pocBufferRef = useRef<PocCandidate[]>([]);
+  const lastCoordRef = useRef<{ lat: number; lng: number } | null>(null);
+  const incrementDistance = useTripStore((s) => s.incrementDistance);
 
   const handlePocDetected = useCallback((poc: PocCandidate) => {
     incrementEvents();
@@ -120,9 +122,16 @@ export default function ActiveTripScreen() {
   }, []);
 
   const handleFlush = useCallback(async (pocs: PocCandidate[]) => {
-    // buffer for later upload
     pocBufferRef.current.push(...pocs);
   }, []);
+
+  const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
 
   const handleManualReport = async (type: 'pothole' | 'speed_breaker' | 'broken_patch') => {
     try {
@@ -189,6 +198,14 @@ export default function ActiveTripScreen() {
           setLiveCoords(point);
           const speedMs = loc.coords.speed ?? 0;
           setLiveSpeed(Math.max(0, speedMs * 3.6));
+
+          // Track distance
+          if (lastCoordRef.current) {
+            const d = haversineKm(lastCoordRef.current.lat, lastCoordRef.current.lng, point.latitude, point.longitude);
+            if (d > 0.005) incrementDistance(d); // ignore GPS noise < 5m
+          }
+          lastCoordRef.current = { lat: point.latitude, lng: point.longitude };
+
           mapRef.current?.animateToRegion({ ...point, latitudeDelta: 0.01, longitudeDelta: 0.01 });
         }
       );
@@ -205,9 +222,21 @@ export default function ActiveTripScreen() {
     locSubRef.current?.remove();
     if (timerRef.current) clearInterval(timerRef.current);
 
+    // Upload buffered POC data before ending trip
+    if (pocBufferRef.current.length > 0) {
+      try {
+        await api.trips.uploadPoc(activeTrip.id, pocBufferRef.current);
+      } catch (e) {
+        console.warn('Failed to upload POC data:', e);
+      }
+      pocBufferRef.current = [];
+    }
+
     try {
       await api.trips.end(activeTrip.id);
-    } catch {}
+    } catch (e: any) {
+      Alert.alert('Warning', 'Trip ended locally but server sync failed. Data will be retried.');
+    }
 
     resetTrip();
     router.replace('/(tabs)/home');

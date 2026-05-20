@@ -107,11 +107,14 @@ Geo-localizes events by clustering detections **across distinct trips**. A potho
 ### 🔊 Real-Time Proximity & Sound Alerts
 Instant **haptic pulses**, full-screen warning overlays, and **audible notification beeps** (via `expo-av`) alert active drivers to oncoming anomalies. Features a sound toggle directly on the active ride screen.
 
-### 📊 Live Telemetry Dashboard
-Real-time visual feed of oriented accelerometer forces ($X, Y, Z$ in g) throttled to 15Hz, live GPS coordinates (longitude/latitude), and current vehicle speed in km/h.
+### 📊 Live Telemetry & Confirmations Feed
+Real-time visual feed of oriented accelerometer forces ($X, Y, Z$ in g) throttled to 15Hz, live GPS coordinates (longitude/latitude), current speed, and recent session confirmation logs.
 
-### 📋 Session Confirmations Feed
-A live session log displaying the most recent road anomalies detected by the AI or manually confirmed/reported by the rider during active trips.
+### 🏆 Gamification & Leaderboard
+Top contributors are ranked by **trip coverage**, **events confirmed**, and **distance traveled** — turning civic data collection into a friendly competition.
+
+### 🗺️ Road Quality Index (RQI)
+Every neighborhood gets a **0–100 quality score** computed from event density, severity, and confidence — perfect for civic dashboards.
 
 </td>
 </tr>

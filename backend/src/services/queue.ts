@@ -3,8 +3,17 @@ import { redis } from '../redis';
 import { prisma } from '../db';
 import { config } from '../config';
 
-const connection = { host: 'localhost', port: 6379 };
-const ML_URL = config.mlServiceUrl ?? 'http://localhost:8001';
+function parseRedisUrl(url: string) {
+  try {
+    const u = new URL(url);
+    return { host: u.hostname, port: parseInt(u.port || '6379', 10) };
+  } catch {
+    return { host: 'localhost', port: 6379 };
+  }
+}
+
+const connection = parseRedisUrl(config.redisUrl);
+const ML_URL = config.mlServiceUrl;
 
 export const tripQueue = new Queue('trip-processing', { connection });
 
@@ -21,7 +30,7 @@ export function startWorkers() {
   );
 
   worker.on('failed', (job, err) => {
-    console.error(`Job ${job?.id} failed:`, err.message);
+    console.error(`Job ${job?.id} failed:`, err instanceof Error ? err.message : err);
   });
 
   return worker;
@@ -56,19 +65,24 @@ async function classifyWithML(pocs: any[]) {
 
 async function classifyTrip(tripId: string) {
   const pocs = await prisma.pocCandidate.findMany({ where: { tripId } });
-  if (!pocs.length) return;
+  if (!pocs.length) {
+    await prisma.trip.update({ where: { id: tripId }, data: { status: 'completed' } });
+    return;
+  }
 
   // Try ML classification first, fall back to rule-based
   const mlResults = await classifyWithML(pocs);
 
-  await prisma.$transaction(
-    pocs.map((poc, i) => {
+  const validEventTypes = ['pothole', 'speed_breaker', 'road_crack', 'water_logging', 'accident', 'construction'];
+
+  await prisma.$transaction([
+    ...pocs.map((poc, i) => {
       let eventType: string;
       let confidence: number;
 
       if (mlResults && mlResults[i]) {
-        eventType = mlResults[i].event_type;
-        confidence = mlResults[i].confidence;
+        eventType = validEventTypes.includes(mlResults[i].event_type) ? mlResults[i].event_type : 'pothole';
+        confidence = typeof mlResults[i].confidence === 'number' ? Math.min(1, Math.max(0, mlResults[i].confidence)) : 0.5;
       } else {
         // Rule-based fallback
         eventType = poc.zValue > 0 ? 'speed_breaker' : 'pothole';
@@ -88,8 +102,7 @@ async function classifyTrip(tripId: string) {
           confidenceScore: confidence,
         },
       });
-    })
-  );
-
-  await prisma.trip.update({ where: { id: tripId }, data: { status: 'completed' } });
+    }),
+    prisma.trip.update({ where: { id: tripId }, data: { status: 'completed' } }),
+  ]);
 }

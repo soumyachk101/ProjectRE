@@ -4,17 +4,20 @@
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "lint": "expo lint"
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "lint": "expo lint",
+    "eas-build-pre-install": "npm config set legacy-peer-deps true"
   },
   "dependencies": {
-    "@react-native-async-storage/async-storage": "^3.0.2",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@tanstack/react-query": "^5.45.0",
     "axios": "^1.7.2",
     "expo": "~54.0.0",
     "expo-av": "~16.0.8",
     "expo-blur": "~15.0.8",
+    "expo-build-properties": "~1.0.10",
+    "expo-constants": "~18.0.13",
     "expo-font": "~14.0.11",
     "expo-haptics": "~15.0.8",
     "expo-linear-gradient": "~15.0.8",

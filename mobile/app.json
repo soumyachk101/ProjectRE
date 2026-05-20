@@ -32,11 +32,36 @@
         {
           "locationAlwaysAndWhenInUsePermission": "RoadSense needs location to map road events along your route."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "minSdkVersion": 24,
+            "enableProguardInReleaseBuilds": false
+          }
+        }
       ]
     ],
     "scheme": "roadsense",
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a03769f7-8d74-48e9-8ed3-3c9652ae7443"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.roadsense.ai",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "RoadSense needs location to map road events along your route.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "RoadSense needs background location to detect road conditions while driving.",
+        "NSLocationAlwaysUsageDescription": "RoadSense needs background location to detect road conditions while driving."
+      }
     }
   }
 }

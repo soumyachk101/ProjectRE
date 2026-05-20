@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import { config } from './config';
 import { prisma } from './db';
 import { redis } from './redis';
@@ -13,8 +14,12 @@ import { startWorkers } from './services/queue';
 
 const app = express();
 
-app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(helmet());
+app.use(cors({
+  origin: process.env.CORS_ORIGIN ?? '*',
+  credentials: true,
+}));
+app.use(express.json({ limit: '1mb' }));
 
 // Routes
 app.use('/', healthRouter);
@@ -29,13 +34,18 @@ app.use((_req, res) => { res.status(404).json({ detail: 'Not found' }); });
 
 // Error handler
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  if (res.headersSent) return _next(err);
   console.error(err);
   res.status(500).json({ detail: 'Internal server error' });
 });
 
 async function start() {
   await redis.connect();
-  startWorkers();
+  try {
+    startWorkers();
+  } catch (err) {
+    console.error('Worker start failed:', err);
+  }
 
   app.listen(config.port, () => {
     console.log(`RoadSense API listening on port ${config.port}`);
@@ -47,8 +57,16 @@ start().catch((err) => {
   process.exit(1);
 });
 
-process.on('SIGTERM', async () => {
-  await prisma.$disconnect();
-  await redis.quit();
-  process.exit(0);
-});
+async function cleanup() {
+  try {
+    await Promise.allSettled([
+      prisma.$disconnect(),
+      redis.quit(),
+    ]);
+  } finally {
+    process.exit(0);
+  }
+}
+
+process.on('SIGTERM', cleanup);
+process.on('SIGINT', cleanup);

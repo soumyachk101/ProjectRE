@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
-import { User, VehicleType } from '../types';
+import { User } from '../types';
 
 interface AuthState {
   user: User | null;
@@ -23,16 +23,26 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ accessToken: access, isAuthenticated: true });
   },
 
-  setUser: (user) => set({ user }),
+  setUser: (user) => {
+    SecureStore.setItemAsync('user_data', JSON.stringify(user)).catch(() => {});
+    set({ user });
+  },
 
   logout: async () => {
-    await SecureStore.deleteItemAsync('access_token');
-    await SecureStore.deleteItemAsync('refresh_token');
+    await Promise.allSettled([
+      SecureStore.deleteItemAsync('access_token'),
+      SecureStore.deleteItemAsync('refresh_token'),
+      SecureStore.deleteItemAsync('user_data'),
+    ]);
     set({ user: null, accessToken: null, isAuthenticated: false });
   },
 
   loadFromStorage: async () => {
-    const token = await SecureStore.getItemAsync('access_token');
-    if (token) set({ accessToken: token, isAuthenticated: true });
+    const [token, userData] = await Promise.all([
+      SecureStore.getItemAsync('access_token'),
+      SecureStore.getItemAsync('user_data'),
+    ]);
+    const user = userData ? JSON.parse(userData) : null;
+    if (token) set({ accessToken: token, isAuthenticated: true, user });
   },
 }));

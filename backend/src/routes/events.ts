@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../db';
+import { requireAuth, AuthRequest } from '../middleware/requireAuth';
 
 export const eventsRouter = Router();
 
@@ -49,15 +50,23 @@ eventsRouter.get('/bbox', async (req, res) => {
   res.json(events.map(eventView));
 });
 
-// POST /api/v1/events/report — manual event report
-eventsRouter.post('/report', async (req, res) => {
-  const { event_type, lat, lng, note } = req.body;
+// POST /api/v1/events/report — manual event report (requires auth)
+eventsRouter.post('/report', requireAuth, async (req: AuthRequest, res) => {
+  const { event_type, lat, lng } = req.body;
   if (!event_type || lat == null || lng == null) {
     res.status(422).json({ detail: 'event_type, lat, lng required' });
     return;
   }
+  if (typeof lat !== 'number' || typeof lng !== 'number' || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    res.status(422).json({ detail: 'Invalid lat/lng values' });
+    return;
+  }
+  const validTypes = ['pothole', 'speed_breaker', 'road_crack', 'water_logging', 'accident', 'construction'];
+  if (!validTypes.includes(event_type)) {
+    res.status(422).json({ detail: `event_type must be one of: ${validTypes.join(', ')}` });
+    return;
+  }
 
-  // Manual reports are user-confirmed → create ConfirmedEvent directly
   const event = await prisma.confirmedEvent.create({
     data: {
       eventType: event_type,

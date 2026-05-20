@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { prisma } from '../db';
+import { requireAuth } from '../middleware/requireAuth';
 
 export const leaderboardRouter = Router();
 
-// GET /api/v1/leaderboard?limit=20
-leaderboardRouter.get('/', async (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit as string) ?? 20, 100);
+// GET /api/v1/leaderboard?limit=20 (requires auth)
+leaderboardRouter.get('/', requireAuth, async (req, res) => {
+  const parsed = parseInt(req.query.limit as string, 10);
+  const limit = Math.min(isNaN(parsed) ? 20 : parsed, 100);
 
   const users = await prisma.user.findMany({
     include: {

@@ -65,7 +65,7 @@ export default function Verify() {
       await setTokens(data.access_token, data.refresh_token);
       router.replace('/(tabs)/home');
     } catch {
-      setError('Wrong OTP. Try 123456 in dev mode.');
+      setError('Wrong OTP. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -127,12 +127,14 @@ export default function Verify() {
           </View>
         )}
 
-        <Animated.View entering={FadeInDown.delay(300).duration(400)}>
-          <Text style={styles.hint}>
-            <MaterialCommunityIcons name="information-outline" size={14} color={colors.textMuted} />
-            {' '}Dev mode: use 123456
-          </Text>
-        </Animated.View>
+        {__DEV__ && (
+          <Animated.View entering={FadeInDown.delay(300).duration(400)}>
+            <Text style={styles.hint}>
+              <MaterialCommunityIcons name="information-outline" size={14} color={colors.textMuted} />
+              {' '}Dev mode: use 123456
+            </Text>
+          </Animated.View>
+        )}
 
         <Animated.View entering={FadeInDown.delay(350).duration(400)} style={styles.buttonWrap}>
           <Button label="Verify" onPress={handleVerify} loading={loading} />

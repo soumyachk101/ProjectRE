@@ -12,24 +12,47 @@ client.interceptors.request.use(async (config) => {
   return config;
 });
 
+let isRefreshing = false;
+let refreshQueue: Array<(token: string) => void> = [];
+
 client.interceptors.response.use(
   (res) => res,
   async (error) => {
-    if (error.response?.status === 401) {
-      const refresh = await SecureStore.getItemAsync('refresh_token');
-      if (refresh) {
-        try {
-          const { data } = await axios.post<AuthTokens>(`${BASE_URL}/auth/refresh`, {
-            refresh_token: refresh,
+    const originalRequest = error.config;
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve) => {
+          refreshQueue.push((token: string) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            resolve(client(originalRequest));
           });
-          await SecureStore.setItemAsync('access_token', data.access_token);
-          await SecureStore.setItemAsync('refresh_token', data.refresh_token);
-          error.config.headers.Authorization = `Bearer ${data.access_token}`;
-          return client(error.config);
-        } catch {
-          await SecureStore.deleteItemAsync('access_token');
-          await SecureStore.deleteItemAsync('refresh_token');
-        }
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const refresh = await SecureStore.getItemAsync('refresh_token');
+        if (!refresh) throw new Error('No refresh token');
+
+        const { data } = await axios.post<AuthTokens>(`${BASE_URL}/auth/refresh`, {
+          refresh_token: refresh,
+        });
+        await SecureStore.setItemAsync('access_token', data.access_token);
+        await SecureStore.setItemAsync('refresh_token', data.refresh_token);
+
+        refreshQueue.forEach((cb) => cb(data.access_token));
+        refreshQueue = [];
+
+        originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
+        return client(originalRequest);
+      } catch {
+        refreshQueue = [];
+        await SecureStore.deleteItemAsync('access_token');
+        await SecureStore.deleteItemAsync('refresh_token');
+      } finally {
+        isRefreshing = false;
       }
     }
     return Promise.reject(error);

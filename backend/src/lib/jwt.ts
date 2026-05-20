@@ -25,10 +25,24 @@ export function verifyToken(token: string): JwtPayload {
 export function makeTokenPair(userId: string) {
   const accessToken = signAccess(userId);
   const refreshToken = signRefresh(userId);
+  const expiresInSeconds = parseDuration(config.jwt.expiresIn);
   return {
     access_token: accessToken,
     refresh_token: refreshToken,
     token_type: 'bearer',
-    expires_in: 86400,
+    expires_in: expiresInSeconds,
   };
+}
+
+function parseDuration(s: string): number {
+  const match = s.match(/^(\d+)([smhd])$/);
+  if (!match) return 86400;
+  const n = parseInt(match[1]);
+  switch (match[2]) {
+    case 's': return n;
+    case 'm': return n * 60;
+    case 'h': return n * 3600;
+    case 'd': return n * 86400;
+    default: return 86400;
+  }
 }
