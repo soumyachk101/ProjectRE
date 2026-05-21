@@ -15,7 +15,7 @@
         "autoIncrement": true
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://10.103.21.81:8080/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://projectre-production.up.railway.app/api/v1"
       }
     },
     "production": {
@@ -23,7 +23,7 @@
         "autoIncrement": true
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://roadsense-api.onrender.com/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://projectre-production.up.railway.app/api/v1"
       }
     }
   },
