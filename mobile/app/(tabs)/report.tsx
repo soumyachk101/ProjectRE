@@ -12,7 +12,7 @@ import { colors, gradients, spacing, typography, radius, shadows, eventColors } 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../../components/ui/Button';
 
-const OSM_TILE_URL = 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png';
+const OSM_TILE_URL = 'https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png';
 
 const EVENT_TYPES: { key: EventType; icon: keyof typeof MaterialCommunityIcons.glyphMap; label: string }[] = [
   { key: 'pothole', icon: 'circle-off-outline', label: 'Pothole' },
@@ -86,7 +86,7 @@ export default function ReportScreen() {
         showsUserLocation
         onPress={handleMapPress}
       >
-        <UrlTile urlTemplate={OSM_TILE_URL} maximumZ={19} flipY={false} zIndex={-1} />
+        <UrlTile urlTemplate={OSM_TILE_URL} maximumZ={19} flipY={false} zIndex={1} />
         {pinLocation && (
           <Marker
             coordinate={{ latitude: pinLocation.lat, longitude: pinLocation.lng }}

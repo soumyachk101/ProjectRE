@@ -18,7 +18,7 @@ import { colors, gradients, spacing, typography, radius, shadows } from '../../c
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatCard } from '../../components/ui/StatCard';
 
-const OSM_TILE_URL = 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png';
+const OSM_TILE_URL = 'https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png';
 
 interface RoutePoint {
   latitude: number;
@@ -326,7 +326,7 @@ export default function ActiveTripScreen() {
         showsUserLocation
         showsMyLocationButton={false}
       >
-        <UrlTile urlTemplate={OSM_TILE_URL} maximumZ={19} flipY={false} zIndex={-1} />
+        <UrlTile urlTemplate={OSM_TILE_URL} maximumZ={19} flipY={false} zIndex={1} />
         {route.length > 1 && (
           <Polyline
             coordinates={route}

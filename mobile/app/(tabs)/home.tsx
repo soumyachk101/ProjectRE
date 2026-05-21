@@ -25,7 +25,7 @@ import { eventColors } from '../../constants/theme';
 import { EventMarker } from '../../components/map/EventMarker';
 import { EventDetailSheet } from '../../components/map/EventDetailSheet';
 import { SearchBar } from '../../components/map/SearchBar';
-const OSM_TILE_URL = 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png';
+const OSM_TILE_URL = 'https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png';
 
 const FILTER_OPTIONS: { key: EventType | 'all'; label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }[] = [
   { key: 'all', label: 'All', icon: 'layers-outline' },
@@ -133,7 +133,7 @@ export default function HomeScreen() {
         showsMyLocationButton={false}
         onRegionChangeComplete={setRegion}
       >
-        <UrlTile urlTemplate={OSM_TILE_URL} maximumZ={19} flipY={false} zIndex={-1} />
+        <UrlTile urlTemplate={OSM_TILE_URL} maximumZ={19} flipY={false} zIndex={1} />
         {filteredEvents.map((event) => (
           <EventMarker key={event.id} event={event} onPress={handleEventPress} />
         ))}
