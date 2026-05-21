@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import MapView, { Marker, UrlTile, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,7 +25,7 @@ import { eventColors } from '../../constants/theme';
 import { EventMarker } from '../../components/map/EventMarker';
 import { EventDetailSheet } from '../../components/map/EventDetailSheet';
 import { SearchBar } from '../../components/map/SearchBar';
-import { darkMapStyle } from '../../constants/mapStyle';
+const OSM_TILE_URL = 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png';
 
 const FILTER_OPTIONS: { key: EventType | 'all'; label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }[] = [
   { key: 'all', label: 'All', icon: 'layers-outline' },
@@ -127,13 +127,13 @@ export default function HomeScreen() {
       <MapView
         ref={mapRef}
         style={styles.map}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+        mapType={Platform.OS === 'android' ? 'none' : 'standard'}
         region={region}
         showsUserLocation
         showsMyLocationButton={false}
-        customMapStyle={darkMapStyle}
         onRegionChangeComplete={setRegion}
       >
+        <UrlTile urlTemplate={OSM_TILE_URL} maximumZ={19} flipY={false} zIndex={-1} />
         {filteredEvents.map((event) => (
           <EventMarker key={event.id} event={event} onPress={handleEventPress} />
         ))}

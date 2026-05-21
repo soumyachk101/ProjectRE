@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Alert } from 'react-native';
-import MapView, { Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Polyline, UrlTile } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as SecureStore from 'expo-secure-store';
 import * as Haptics from 'expo-haptics';
@@ -17,7 +17,8 @@ import { PocCandidate } from '../../types';
 import { colors, gradients, spacing, typography, radius, shadows } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatCard } from '../../components/ui/StatCard';
-import { darkMapStyle } from '../../constants/mapStyle';
+
+const OSM_TILE_URL = 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png';
 
 interface RoutePoint {
   latitude: number;
@@ -320,12 +321,12 @@ export default function ActiveTripScreen() {
       <MapView
         ref={mapRef}
         style={styles.map}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+        mapType={Platform.OS === 'android' ? 'none' : 'standard'}
         initialRegion={mapRegion}
-        customMapStyle={darkMapStyle}
         showsUserLocation
         showsMyLocationButton={false}
       >
+        <UrlTile urlTemplate={OSM_TILE_URL} maximumZ={19} flipY={false} zIndex={-1} />
         {route.length > 1 && (
           <Polyline
             coordinates={route}

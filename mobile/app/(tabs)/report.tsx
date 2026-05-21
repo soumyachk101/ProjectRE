@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, UrlTile } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -11,7 +11,8 @@ import { api } from '../../services/api';
 import { colors, gradients, spacing, typography, radius, shadows, eventColors } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../../components/ui/Button';
-import { darkMapStyle } from '../../constants/mapStyle';
+
+const OSM_TILE_URL = 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png';
 
 const EVENT_TYPES: { key: EventType; icon: keyof typeof MaterialCommunityIcons.glyphMap; label: string }[] = [
   { key: 'pothole', icon: 'circle-off-outline', label: 'Pothole' },
@@ -80,12 +81,12 @@ export default function ReportScreen() {
       <MapView
         ref={mapRef}
         style={styles.map}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+        mapType={Platform.OS === 'android' ? 'none' : 'standard'}
         initialRegion={initialRegion}
-        customMapStyle={darkMapStyle}
         showsUserLocation
         onPress={handleMapPress}
       >
+        <UrlTile urlTemplate={OSM_TILE_URL} maximumZ={19} flipY={false} zIndex={-1} />
         {pinLocation && (
           <Marker
             coordinate={{ latitude: pinLocation.lat, longitude: pinLocation.lng }}
