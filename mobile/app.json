@@ -45,7 +45,8 @@
             "compileSdkVersion": 35,
             "targetSdkVersion": 35,
             "minSdkVersion": 24,
-            "enableProguardInReleaseBuilds": false
+            "enableProguardInReleaseBuilds": false,
+            "enableMinifyInReleaseBuilds": false
           }
         }
       ]
@@ -57,7 +58,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "a03769f7-8d74-48e9-8ed3-3c9652ae7443"
+        "projectId": "b21834cb-ecf6-4897-9def-253ce577c0c8"
       }
     },
     "ios": {
@@ -67,6 +68,7 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "RoadSense needs background location to detect road conditions while driving.",
         "NSLocationAlwaysUsageDescription": "RoadSense needs background location to detect road conditions while driving."
       }
-    }
+    },
+    "owner": "soumya.chk"
   }
 }

@@ -14,10 +14,13 @@ import { startWorkers } from './services/queue';
 
 const app = express();
 
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+}));
 app.use(cors({
   origin: process.env.CORS_ORIGIN ?? '*',
-  credentials: true,
+  credentials: false,
 }));
 app.use(express.json({ limit: '1mb' }));
 
@@ -35,7 +38,7 @@ app.use((_req, res) => { res.status(404).json({ detail: 'Not found' }); });
 // Error handler
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (res.headersSent) return _next(err);
-  console.error(err);
+  console.error('[GlobalError]', err);
   res.status(500).json({ detail: 'Internal server error' });
 });
 

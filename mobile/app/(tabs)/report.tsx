@@ -25,7 +25,9 @@ export default function ReportScreen() {
   const [pinLocation, setPinLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [initialRegion, setInitialRegion] = useState<{ latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number } | null>(null);
+  const [initialRegion, setInitialRegion] = useState<{ latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number }>({
+    latitude: 23.55, longitude: 87.31, latitudeDelta: 0.05, longitudeDelta: 0.05,
+  });
   const mapRef = useRef<MapView>(null);
 
   useEffect(() => {
@@ -79,7 +81,7 @@ export default function ReportScreen() {
         ref={mapRef}
         style={styles.map}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        initialRegion={initialRegion ?? undefined}
+        initialRegion={initialRegion}
         customMapStyle={darkMapStyle}
         showsUserLocation
         onPress={handleMapPress}

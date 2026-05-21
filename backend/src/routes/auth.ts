@@ -26,57 +26,72 @@ const RefreshSchema = z.object({
 });
 
 authRouter.post('/register', async (req, res) => {
-  const parsed = RegisterSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(422).json({ detail: parsed.error.flatten() });
-    return;
+  try {
+    const parsed = RegisterSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(422).json({ detail: parsed.error.flatten() });
+      return;
+    }
+    const { phone, name, vehicle_type } = parsed.data;
+    const user = await prisma.user.upsert({
+      where: { phone },
+      update: { name: name ?? undefined, vehicleType: vehicle_type ?? undefined },
+      create: { phone, name: name ?? null, vehicleType: vehicle_type ?? null },
+    });
+    res.status(201).json({ id: user.id, phone: user.phone, name: user.name, role: user.role, vehicle_type: user.vehicleType });
+  } catch (err) {
+    console.error('[Register]', err);
+    res.status(500).json({ detail: 'Registration failed. Please try again.' });
   }
-  const { phone, name, vehicle_type } = parsed.data;
-  const user = await prisma.user.upsert({
-    where: { phone },
-    update: { name: name ?? undefined, vehicleType: vehicle_type ?? undefined },
-    create: { phone, name: name ?? null, vehicleType: vehicle_type ?? null },
-  });
-  res.status(201).json({ id: user.id, phone: user.phone, name: user.name, role: user.role, vehicle_type: user.vehicleType });
 });
 
 authRouter.post('/send-otp', async (req, res) => {
-  const parsed = SendOtpSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(422).json({ detail: parsed.error.flatten() });
-    return;
+  try {
+    const parsed = SendOtpSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(422).json({ detail: parsed.error.flatten() });
+      return;
+    }
+    await sendOtp(parsed.data.phone);
+    res.json({ message: 'OTP sent' });
+  } catch (err) {
+    console.error('[SendOTP]', err);
+    res.status(500).json({ detail: 'Failed to send OTP. Please try again.' });
   }
-  await sendOtp(parsed.data.phone);
-  res.json({ message: 'OTP sent' });
 });
 
 authRouter.post('/login', async (req, res) => {
-  const parsed = LoginSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(422).json({ detail: parsed.error.flatten() });
-    return;
+  try {
+    const parsed = LoginSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(422).json({ detail: parsed.error.flatten() });
+      return;
+    }
+    const { phone, otp } = parsed.data;
+    const valid = await verifyOtp(phone, otp);
+    if (!valid) {
+      res.status(401).json({ detail: 'Invalid OTP' });
+      return;
+    }
+    const user = await prisma.user.upsert({
+      where: { phone },
+      update: {},
+      create: { phone },
+    });
+    res.json(makeTokenPair(user.id));
+  } catch (err) {
+    console.error('[Login]', err);
+    res.status(500).json({ detail: 'Login failed. Please try again.' });
   }
-  const { phone, otp } = parsed.data;
-  const valid = await verifyOtp(phone, otp);
-  if (!valid) {
-    res.status(401).json({ detail: 'Invalid OTP' });
-    return;
-  }
-  const user = await prisma.user.upsert({
-    where: { phone },
-    update: {},
-    create: { phone },
-  });
-  res.json(makeTokenPair(user.id));
 });
 
 authRouter.post('/refresh', async (req, res) => {
-  const parsed = RefreshSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(422).json({ detail: parsed.error.flatten() });
-    return;
-  }
   try {
+    const parsed = RefreshSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(422).json({ detail: parsed.error.flatten() });
+      return;
+    }
     const payload = verifyToken(parsed.data.refresh_token);
     if (payload.type !== 'refresh') {
       res.status(401).json({ detail: 'Invalid token type' });
@@ -88,7 +103,12 @@ authRouter.post('/refresh', async (req, res) => {
       return;
     }
     res.json(makeTokenPair(user.id));
-  } catch {
-    res.status(401).json({ detail: 'Invalid refresh token' });
+  } catch (err: any) {
+    if (err?.message === 'Invalid token type' || err?.name === 'JsonWebTokenError' || err?.name === 'TokenExpiredError') {
+      res.status(401).json({ detail: 'Invalid refresh token' });
+      return;
+    }
+    console.error('[Refresh]', err);
+    res.status(500).json({ detail: 'Token refresh failed' });
   }
 });

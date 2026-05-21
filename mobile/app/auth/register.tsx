@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import * as SecureStore from 'expo-secure-store';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/auth';
 import { colors, gradients, spacing, typography, radius, shadows } from '../../constants/theme';
@@ -25,16 +26,25 @@ export default function Register() {
     setLoading(true);
     setError(null);
     try {
-      const { data: user } = await api.auth.register(phone.trim(), name.trim() || 'Rider');
+      const vehicleType = await SecureStore.getItemAsync('vehicleType') ?? undefined;
+      const { data: user } = await api.auth.register(phone.trim(), name.trim() || 'Rider', vehicleType);
       setUser(user);
       await api.auth.sendOtp(phone.trim());
       router.push({ pathname: '/auth/verify', params: { phone: phone.trim() } });
     } catch (e: any) {
-      const msg = e.response?.data?.detail
-        ?? (e.message === 'Network Error' ? 'Cannot reach server. Check your connection.' : e.message)
-        ?? 'Registration failed';
-      console.error('[Register]', e.config?.baseURL, e.config?.url, e.message, e.response?.status);
-      setError(typeof msg === 'string' ? msg : 'Registration failed');
+      let msg: string;
+      if (e.code === 'ECONNABORTED') {
+        msg = 'Server is slow. Please try again.';
+      } else if (e.message === 'Network Error' && !e.response) {
+        msg = 'Cannot reach server. Check your internet connection.';
+      } else if (e.response?.data?.detail) {
+        const detail = e.response.data.detail;
+        msg = typeof detail === 'string' ? detail : 'Registration failed. Check your details.';
+      } else {
+        msg = e.message || 'Registration failed';
+      }
+      console.error('[Register]', e.config?.baseURL, e.config?.url, e.message, e.response?.status, e.code);
+      setError(msg);
     } finally {
       setLoading(false);
     }

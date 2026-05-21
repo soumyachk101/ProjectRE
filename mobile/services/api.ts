@@ -3,9 +3,9 @@ import * as SecureStore from 'expo-secure-store';
 import { AuthTokens, PocCandidate, Trip, User, QualityScore, UserStats, LeaderboardEntry, ManualReport } from '../types';
 import { useAuthStore } from '../store/auth';
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000/api/v1';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://projectre-production.up.railway.app/api/v1';
 
-const client = axios.create({ baseURL: BASE_URL, timeout: 15000 });
+const client = axios.create({ baseURL: BASE_URL, timeout: 30000 });
 
 client.interceptors.request.use(async (config) => {
   const token = await SecureStore.getItemAsync('access_token');

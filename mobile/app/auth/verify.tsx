@@ -64,8 +64,14 @@ export default function Verify() {
       const { data } = await api.auth.login(phone!, otpStr);
       await setTokens(data.access_token, data.refresh_token);
       router.replace('/(tabs)/home');
-    } catch {
-      setError('Wrong OTP. Please try again.');
+    } catch (e: any) {
+      if (e.code === 'ECONNABORTED') {
+        setError('Server is slow. Please try again.');
+      } else if (e.message === 'Network Error' && !e.response) {
+        setError('Cannot reach server. Check your internet connection.');
+      } else {
+        setError('Wrong OTP. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

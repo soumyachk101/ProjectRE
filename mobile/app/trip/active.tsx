@@ -34,7 +34,9 @@ export default function ActiveTripScreen() {
   const [route, setRoute] = useState<RoutePoint[]>([]);
   const [starting, setStarting] = useState(false);
   const [ending, setEnding] = useState(false);
-  const [mapRegion, setMapRegion] = useState<{ latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number } | null>(null);
+  const [mapRegion, setMapRegion] = useState<{ latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number }>({
+    latitude: 23.55, longitude: 87.31, latitudeDelta: 0.05, longitudeDelta: 0.05,
+  });
 
   // Live telemetry features
   const [liveSensors, setLiveSensors] = useState({ x: 0, y: 0, z: 0 });
@@ -319,7 +321,7 @@ export default function ActiveTripScreen() {
         ref={mapRef}
         style={styles.map}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        initialRegion={mapRegion ?? undefined}
+        initialRegion={mapRegion}
         customMapStyle={darkMapStyle}
         showsUserLocation
         showsMyLocationButton={false}
