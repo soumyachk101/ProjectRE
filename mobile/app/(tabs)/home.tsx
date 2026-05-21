@@ -20,6 +20,7 @@ import { useEventsStore } from '../../store/events';
 import { useTripStore } from '../../store/trip';
 import { ConfirmedEvent, EventType } from '../../types';
 import { colors, gradients, spacing, typography, radius, shadows } from '../../constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { eventColors } from '../../constants/theme';
 import { EventMarker } from '../../components/map/EventMarker';
 import { EventDetailSheet } from '../../components/map/EventDetailSheet';
@@ -34,6 +35,7 @@ const FILTER_OPTIONS: { key: EventType | 'all'; label: string; icon: keyof typeo
 ];
 
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
   const [region, setRegion] = useState<Region>({
     latitude: 23.55, longitude: 87.31, latitudeDelta: 0.05, longitudeDelta: 0.05,
   });
@@ -89,12 +91,15 @@ export default function HomeScreen() {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
       const loc = await Location.getCurrentPositionAsync({});
-      setRegion((r) => ({
-        ...r,
+      const userRegion = {
         latitude: loc.coords.latitude,
         longitude: loc.coords.longitude,
-      }));
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      };
+      setRegion(userRegion);
       setLocationReady(true);
+      mapRef.current?.animateToRegion(userRegion);
     })();
   }, []);
 
@@ -123,7 +128,7 @@ export default function HomeScreen() {
         ref={mapRef}
         style={styles.map}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        initialRegion={region}
+        region={region}
         showsUserLocation
         showsMyLocationButton={false}
         customMapStyle={darkMapStyle}
@@ -142,7 +147,7 @@ export default function HomeScreen() {
       />
 
       {/* Glassmorphism header */}
-      <View style={styles.headerWrap}>
+      <View style={[styles.headerWrap, { top: insets.top + 12 }]}>
         <BlurView intensity={90} tint="light" style={styles.headerBlur}>
           <View style={styles.headerContent}>
             <View>
@@ -160,7 +165,7 @@ export default function HomeScreen() {
       </View>
 
       {/* Search bar */}
-      <View style={styles.searchWrap}>
+      <View style={[styles.searchWrap, { top: insets.top + 82 }]}>
         <SearchBar
           onSelect={(lat, lng) => {
             mapRef.current?.animateToRegion({
@@ -174,7 +179,7 @@ export default function HomeScreen() {
       </View>
 
       {/* Filter bar */}
-      <View style={styles.filterWrap}>
+      <View style={[styles.filterWrap, { top: insets.top + 130 }]}>
         <BlurView intensity={90} tint="light" style={styles.filterBlur}>
           <View style={styles.filterRow}>
             {FILTER_OPTIONS.map((opt) => {
@@ -209,13 +214,17 @@ export default function HomeScreen() {
       <TouchableOpacity
         style={styles.locationBtn}
         onPress={async () => {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status !== 'granted') return;
           const loc = await Location.getCurrentPositionAsync({});
-          mapRef.current?.animateToRegion({
+          const userRegion = {
             latitude: loc.coords.latitude,
             longitude: loc.coords.longitude,
             latitudeDelta: 0.02,
             longitudeDelta: 0.02,
-          });
+          };
+          setRegion(userRegion);
+          mapRef.current?.animateToRegion(userRegion);
         }}
         activeOpacity={0.8}
       >

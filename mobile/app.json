@@ -17,6 +17,11 @@
         "backgroundColor": "#0d0221"
       },
       "package": "com.roadsense.ai",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBNwU2AEA87dpGDJGboZlAUhqvIpaduNVU"
+        }
+      },
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",

@@ -7,7 +7,6 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { Audio } from 'expo-av';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { api } from '../../services/api';
@@ -16,6 +15,7 @@ import { useTripStore } from '../../store/trip';
 import { useEventsStore } from '../../store/events';
 import { PocCandidate } from '../../types';
 import { colors, gradients, spacing, typography, radius, shadows } from '../../constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatCard } from '../../components/ui/StatCard';
 import { darkMapStyle } from '../../constants/mapStyle';
 
@@ -25,6 +25,7 @@ interface RoutePoint {
 }
 
 export default function ActiveTripScreen() {
+  const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
   const engineRef = useRef<SensorEngine | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -32,6 +33,8 @@ export default function ActiveTripScreen() {
 
   const [route, setRoute] = useState<RoutePoint[]>([]);
   const [starting, setStarting] = useState(false);
+  const [ending, setEnding] = useState(false);
+  const [mapRegion, setMapRegion] = useState<{ latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number } | null>(null);
 
   // Live telemetry features
   const [liveSensors, setLiveSensors] = useState({ x: 0, y: 0, z: 0 });
@@ -46,19 +49,7 @@ export default function ActiveTripScreen() {
   }, [soundEnabled]);
 
   const playAlertSound = async (eventType: string) => {
-    try {
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: 'https://www.soundjay.com/buttons/sounds/button-10.mp3' }
-      );
-      await sound.playAsync();
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          sound.unloadAsync();
-        }
-      });
-    } catch (e) {
-      console.log('Error playing sound:', e);
-    }
+    // Placeholder for future audio alerts — haptics are handled in handlePocDetected
   };
 
   const activeTrip = useTripStore((s) => s.activeTrip);
@@ -168,6 +159,12 @@ export default function ActiveTripScreen() {
       const loc = await Location.getCurrentPositionAsync({});
 
       setLiveCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+      setMapRegion({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
       const speedMs = loc.coords.speed ?? 0;
       setLiveSpeed(Math.max(0, speedMs * 3.6));
 
@@ -217,29 +214,33 @@ export default function ActiveTripScreen() {
   };
 
   const endTrip = async () => {
-    if (!activeTrip) return;
+    if (!activeTrip || ending) return;
+    setEnding(true);
+
+    // Stop sensors and location immediately
     engineRef.current?.stop();
     locSubRef.current?.remove();
     if (timerRef.current) clearInterval(timerRef.current);
 
-    // Upload buffered POC data before ending trip
-    if (pocBufferRef.current.length > 0) {
-      try {
-        await api.trips.uploadPoc(activeTrip.id, pocBufferRef.current);
-      } catch (e) {
-        console.warn('Failed to upload POC data:', e);
-      }
-      pocBufferRef.current = [];
-    }
-
-    try {
-      await api.trips.end(activeTrip.id);
-    } catch (e: any) {
-      Alert.alert('Warning', 'Trip ended locally but server sync failed. Data will be retried.');
-    }
-
-    resetTrip();
+    // Navigate first — user should see home screen immediately
     router.replace('/(tabs)/home');
+    resetTrip();
+
+    // Fire API calls in parallel, don't block navigation
+    const tripId = activeTrip.id;
+    const pocs = [...pocBufferRef.current];
+    pocBufferRef.current = [];
+
+    const tasks: Promise<any>[] = [api.trips.end(tripId)];
+    if (pocs.length > 0) {
+      tasks.push(api.trips.uploadPoc(tripId, pocs));
+    }
+
+    const results = await Promise.allSettled(tasks);
+    const failed = results.filter((r) => r.status === 'rejected');
+    if (failed.length > 0) {
+      console.warn('Trip sync issues:', failed);
+    }
   };
 
   useEffect(() => {
@@ -318,6 +319,7 @@ export default function ActiveTripScreen() {
         ref={mapRef}
         style={styles.map}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+        initialRegion={mapRegion ?? undefined}
         customMapStyle={darkMapStyle}
         showsUserLocation
         showsMyLocationButton={false}
@@ -333,7 +335,7 @@ export default function ActiveTripScreen() {
       </MapView>
 
       {/* Glassmorphism stats panel */}
-      <View style={styles.statsWrap}>
+      <View style={[styles.statsWrap, { top: insets.top + 12 }]}>
         <BlurView intensity={80} tint="light" style={styles.statsBlur}>
           <Animated.View entering={FadeInDown.duration(400)}>
             <View style={styles.statsRow}>
@@ -445,15 +447,15 @@ export default function ActiveTripScreen() {
 
       {/* End trip button */}
       <View style={styles.endWrap}>
-        <TouchableOpacity onPress={endTrip} activeOpacity={0.85}>
+        <TouchableOpacity onPress={endTrip} disabled={ending} activeOpacity={0.85}>
           <LinearGradient
-            colors={gradients.danger as any}
+            colors={ending ? gradients.primary as any : gradients.danger as any}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={[styles.endBtn, shadows.md]}
+            style={[styles.endBtn, shadows.md, ending && { opacity: 0.7 }]}
           >
             <MaterialCommunityIcons name="stop" size={20} color="#fff" />
-            <Text style={styles.endBtnText}>End Trip</Text>
+            <Text style={styles.endBtnText}>{ending ? 'Ending…' : 'End Trip'}</Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>

@@ -9,6 +9,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { EventType } from '../../types';
 import { api } from '../../services/api';
 import { colors, gradients, spacing, typography, radius, shadows, eventColors } from '../../constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../../components/ui/Button';
 import { darkMapStyle } from '../../constants/mapStyle';
 
@@ -19,10 +20,12 @@ const EVENT_TYPES: { key: EventType; icon: keyof typeof MaterialCommunityIcons.g
 ];
 
 export default function ReportScreen() {
+  const insets = useSafeAreaInsets();
   const [selectedType, setSelectedType] = useState<EventType | null>(null);
   const [pinLocation, setPinLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [initialRegion, setInitialRegion] = useState<{ latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number } | null>(null);
   const mapRef = useRef<MapView>(null);
 
   useEffect(() => {
@@ -30,12 +33,14 @@ export default function ReportScreen() {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
         const loc = await Location.getCurrentPositionAsync({});
-        mapRef.current?.animateToRegion({
+        const region = {
           latitude: loc.coords.latitude,
           longitude: loc.coords.longitude,
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
-        });
+        };
+        setInitialRegion(region);
+        mapRef.current?.animateToRegion(region);
       }
     })();
   }, []);
@@ -74,6 +79,7 @@ export default function ReportScreen() {
         ref={mapRef}
         style={styles.map}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+        initialRegion={initialRegion ?? undefined}
         customMapStyle={darkMapStyle}
         showsUserLocation
         onPress={handleMapPress}
@@ -93,7 +99,7 @@ export default function ReportScreen() {
       />
 
       {/* Header */}
-      <View style={styles.headerWrap}>
+      <View style={[styles.headerWrap, { top: insets.top + 12 }]}>
         <BlurView intensity={90} tint="light" style={styles.headerBlur}>
           <View style={styles.headerRow}>
             <View style={styles.headerIcon}>
@@ -109,7 +115,7 @@ export default function ReportScreen() {
       </View>
 
       {/* Event type selector */}
-      <View style={styles.typeWrap}>
+      <View style={[styles.typeWrap, { top: insets.top + 106 }]}>
         <BlurView intensity={30} tint="light" style={styles.typeBlur}>
           <View style={styles.typeRow}>
             {EVENT_TYPES.map((t) => {

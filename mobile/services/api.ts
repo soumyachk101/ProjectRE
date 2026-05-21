@@ -1,10 +1,11 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { AuthTokens, PocCandidate, Trip, User, QualityScore, UserStats, LeaderboardEntry, ManualReport } from '../types';
+import { useAuthStore } from '../store/auth';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000/api/v1';
 
-const client = axios.create({ baseURL: BASE_URL });
+const client = axios.create({ baseURL: BASE_URL, timeout: 15000 });
 
 client.interceptors.request.use(async (config) => {
   const token = await SecureStore.getItemAsync('access_token');
@@ -51,6 +52,7 @@ client.interceptors.response.use(
         refreshQueue = [];
         await SecureStore.deleteItemAsync('access_token');
         await SecureStore.deleteItemAsync('refresh_token');
+        useAuthStore.getState().logout();
       } finally {
         isRefreshing = false;
       }

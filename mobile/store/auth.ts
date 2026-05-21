@@ -38,11 +38,20 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   loadFromStorage: async () => {
-    const [token, userData] = await Promise.all([
-      SecureStore.getItemAsync('access_token'),
-      SecureStore.getItemAsync('user_data'),
-    ]);
-    const user = userData ? JSON.parse(userData) : null;
-    if (token) set({ accessToken: token, isAuthenticated: true, user });
+    try {
+      const [token, userData] = await Promise.all([
+        SecureStore.getItemAsync('access_token'),
+        SecureStore.getItemAsync('user_data'),
+      ]);
+      const user = userData ? JSON.parse(userData) : null;
+      if (token) set({ accessToken: token, isAuthenticated: true, user });
+    } catch {
+      await Promise.allSettled([
+        SecureStore.deleteItemAsync('access_token'),
+        SecureStore.deleteItemAsync('refresh_token'),
+        SecureStore.deleteItemAsync('user_data'),
+      ]);
+      set({ user: null, accessToken: null, isAuthenticated: false });
+    }
   },
 }));
