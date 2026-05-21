@@ -13,7 +13,7 @@ function requireEnv(key: string): string {
 export const config = {
   port: parseInt(process.env.PORT ?? '8000', 10),
   databaseUrl: requireEnv('DATABASE_URL'),
-  redisUrl: process.env.REDIS_URL ?? 'redis://localhost:6379',
+  redisUrl: requireEnv('REDIS_URL'),
   minio: {
     endpoint: process.env.MINIO_ENDPOINT ?? 'localhost',
     port: parseInt(process.env.MINIO_PORT ?? '9000', 10),

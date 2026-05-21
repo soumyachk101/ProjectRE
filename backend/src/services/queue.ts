@@ -1,18 +1,10 @@
 import { Queue, Worker } from 'bullmq';
+import Redis from 'ioredis';
 import { redis } from '../redis';
 import { prisma } from '../db';
 import { config } from '../config';
 
-function parseRedisUrl(url: string) {
-  try {
-    const u = new URL(url);
-    return { host: u.hostname, port: parseInt(u.port || '6379', 10) };
-  } catch {
-    return { host: 'localhost', port: 6379 };
-  }
-}
-
-const connection = parseRedisUrl(config.redisUrl);
+const connection = new Redis(config.redisUrl, { maxRetriesPerRequest: null });
 const ML_URL = config.mlServiceUrl;
 
 export const tripQueue = new Queue('trip-processing', { connection });
