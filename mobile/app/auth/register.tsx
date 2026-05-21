@@ -30,7 +30,11 @@ export default function Register() {
       await api.auth.sendOtp(phone.trim());
       router.push({ pathname: '/auth/verify', params: { phone: phone.trim() } });
     } catch (e: any) {
-      setError(e.response?.data?.detail ?? 'Registration failed');
+      const msg = e.response?.data?.detail
+        ?? (e.message === 'Network Error' ? 'Cannot reach server. Check your connection.' : e.message)
+        ?? 'Registration failed';
+      console.error('[Register]', e.config?.baseURL, e.config?.url, e.message, e.response?.status);
+      setError(typeof msg === 'string' ? msg : 'Registration failed');
     } finally {
       setLoading(false);
     }
