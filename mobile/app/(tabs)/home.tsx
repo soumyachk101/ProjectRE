@@ -92,29 +92,39 @@ export default function HomeScreen() {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
-      const loc = await Location.getCurrentPositionAsync({});
-      const userRegion = {
-        latitude: loc.coords.latitude,
-        longitude: loc.coords.longitude,
-        latitudeDelta: 0.02,
-        longitudeDelta: 0.02,
-      };
-      setRegion(userRegion);
-      setInitialRegion(userRegion);
-      setLocationReady(true);
 
-      locSubRef.current = await Location.watchPositionAsync(
-        { distanceInterval: 10, accuracy: Location.Accuracy.Balanced },
-        (loc) => {
-          const newRegion = {
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
-            latitudeDelta: 0.02,
-            longitudeDelta: 0.02,
-          };
-          setRegion(newRegion);
-        },
-      );
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!servicesEnabled) return;
+
+      try {
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        const userRegion = {
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+          latitudeDelta: 0.02,
+          longitudeDelta: 0.02,
+        };
+        setRegion(userRegion);
+        setInitialRegion(userRegion);
+        setLocationReady(true);
+
+        locSubRef.current = await Location.watchPositionAsync(
+          { distanceInterval: 10, accuracy: Location.Accuracy.Balanced },
+          (loc) => {
+            const newRegion = {
+              latitude: loc.coords.latitude,
+              longitude: loc.coords.longitude,
+              latitudeDelta: 0.02,
+              longitudeDelta: 0.02,
+            };
+            setRegion(newRegion);
+          },
+        );
+      } catch {
+        // GPS unavailable — map shows default region
+      }
     })();
     return () => { locSubRef.current?.remove(); };
   }, []);

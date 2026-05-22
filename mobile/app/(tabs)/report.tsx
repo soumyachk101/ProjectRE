@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import MapView, { Marker, UrlTile } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -35,7 +35,7 @@ export default function ReportScreen() {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({});
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         const region = {
           latitude: loc.coords.latitude,
           longitude: loc.coords.longitude,
@@ -81,7 +81,7 @@ export default function ReportScreen() {
       <MapView
         ref={mapRef}
         style={styles.map}
-        mapType={Platform.OS === 'android' ? 'none' : 'standard'}
+        mapType="none"
         initialRegion={initialRegion}
         showsUserLocation
         onPress={handleMapPress}

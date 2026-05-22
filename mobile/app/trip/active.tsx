@@ -129,7 +129,7 @@ export default function ActiveTripScreen() {
 
   const handleManualReport = async (type: 'pothole' | 'speed_breaker' | 'broken_patch') => {
     try {
-      const loc = await Location.getCurrentPositionAsync({});
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       await api.events.report({ event_type: type, lat: loc.coords.latitude, lng: loc.coords.longitude });
       incrementEvents();
       setLastEvent(type);
@@ -159,7 +159,7 @@ export default function ActiveTripScreen() {
     try {
       const vehicleType = (await SecureStore.getItemAsync('vehicleType')) as VehicleType ?? 'two_wheeler';
       const placement = (await SecureStore.getItemAsync('placement')) as Placement ?? 'mounter';
-      const loc = await Location.getCurrentPositionAsync({});
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
 
       setLiveCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
       setMapRegion({
@@ -321,7 +321,7 @@ export default function ActiveTripScreen() {
       <MapView
         ref={mapRef}
         style={styles.map}
-        mapType={Platform.OS === 'android' ? 'none' : 'standard'}
+        mapType="none"
         initialRegion={mapRegion}
         showsUserLocation
         showsMyLocationButton={false}
