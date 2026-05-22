@@ -19,7 +19,7 @@
       "package": "com.roadsense.ai",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyDummyKeyForOSMInitializationOnly"
+          "apiKey": "AIzaSyCIr-88RwcPRMhv_GmZ8hXmD9Fmxx-w0Pw"
         }
       },
       "permissions": [

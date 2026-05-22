@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import MapView, { Marker, UrlTile, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
@@ -39,9 +39,11 @@ export default function HomeScreen() {
   const [region, setRegion] = useState<Region>({
     latitude: 23.55, longitude: 87.31, latitudeDelta: 0.05, longitudeDelta: 0.05,
   });
+  const [initialRegion, setInitialRegion] = useState<Region | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<ConfirmedEvent | null>(null);
   const [locationReady, setLocationReady] = useState(false);
   const mapRef = useRef<MapView>(null);
+  const locSubRef = useRef<Location.LocationSubscription | null>(null);
 
   const filter = useEventsStore((s) => s.filter);
   const setFilter = useEventsStore((s) => s.setFilter);
@@ -98,9 +100,23 @@ export default function HomeScreen() {
         longitudeDelta: 0.02,
       };
       setRegion(userRegion);
+      setInitialRegion(userRegion);
       setLocationReady(true);
-      mapRef.current?.animateToRegion(userRegion);
+
+      locSubRef.current = await Location.watchPositionAsync(
+        { distanceInterval: 10, accuracy: Location.Accuracy.Balanced },
+        (loc) => {
+          const newRegion = {
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+            latitudeDelta: 0.02,
+            longitudeDelta: 0.02,
+          };
+          setRegion(newRegion);
+        },
+      );
     })();
+    return () => { locSubRef.current?.remove(); };
   }, []);
 
   useEffect(() => {
@@ -127,7 +143,7 @@ export default function HomeScreen() {
       <MapView
         ref={mapRef}
         style={styles.map}
-        mapType={Platform.OS === 'android' ? 'none' : 'standard'}
+        mapType="none"
         region={region}
         showsUserLocation
         showsMyLocationButton={false}
