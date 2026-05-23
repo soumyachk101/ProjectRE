@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import MapView, { Marker, UrlTile } from 'react-native-maps';
 import * as Location from 'expo-location';
+import { getLocationSafe, ensureLocationPermission } from '../../services/location';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -33,9 +34,10 @@ export default function ReportScreen() {
 
   useEffect(() => {
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const permitted = await ensureLocationPermission();
+      if (!permitted) return;
+      try {
+        const loc = await getLocationSafe({ accuracy: Location.Accuracy.Balanced, timeoutMs: 10000 });
         const region = {
           latitude: loc.coords.latitude,
           longitude: loc.coords.longitude,
@@ -44,6 +46,8 @@ export default function ReportScreen() {
         };
         setInitialRegion(region);
         mapRef.current?.animateToRegion(region);
+      } catch (e: any) {
+        console.warn('Report screen location failed:', e.message);
       }
     })();
   }, []);

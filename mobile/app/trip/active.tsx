@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Alert } from 'react-native';
 import MapView, { Polyline, UrlTile } from 'react-native-maps';
 import * as Location from 'expo-location';
+import { getLocationSafe, ensureLocationPermission } from '../../services/location';
 import * as SecureStore from 'expo-secure-store';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
@@ -129,7 +130,7 @@ export default function ActiveTripScreen() {
 
   const handleManualReport = async (type: 'pothole' | 'speed_breaker' | 'broken_patch') => {
     try {
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const loc = await getLocationSafe({ accuracy: Location.Accuracy.Balanced, timeoutMs: 8000 });
       await api.events.report({ event_type: type, lat: loc.coords.latitude, lng: loc.coords.longitude });
       incrementEvents();
       setLastEvent(type);
@@ -157,10 +158,48 @@ export default function ActiveTripScreen() {
   const startTrip = async () => {
     setStarting(true);
     try {
+      // Ensure location permission is granted BEFORE any GPS calls
+      const permitted = await ensureLocationPermission();
+      if (!permitted) {
+        Alert.alert(
+          'Location Required',
+          'Please grant location permission and ensure GPS/Location Services are enabled to start a trip.',
+        );
+        setStarting(false);
+        return;
+      }
+
+      // Read preferences (instant, from local storage)
       const vehicleType = (await SecureStore.getItemAsync('vehicleType')) as VehicleType ?? 'two_wheeler';
       const placement = (await SecureStore.getItemAsync('placement')) as Placement ?? 'mounter';
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
 
+      // Try to get initial location, fallback gracefully if it fails/times out
+      let loc: Location.LocationObject;
+      let isFallback = false;
+      try {
+        loc = await getLocationSafe({ accuracy: Location.Accuracy.Balanced, timeoutMs: 6000 });
+      } catch (err: any) {
+        console.warn('[startTrip] Initial location fetch failed, using fallback:', err.message);
+        isFallback = true;
+        loc = {
+          coords: {
+            latitude: 23.55,
+            longitude: 87.31,
+            altitude: null,
+            accuracy: null,
+            altitudeAccuracy: null,
+            heading: null,
+            speed: 0,
+          },
+          timestamp: Date.now(),
+        } as Location.LocationObject;
+      }
+
+      // Create a trip on the backend. This is critical.
+      const tripResponse = await api.trips.create(vehicleType, placement);
+      const trip = tripResponse.data;
+
+      // Set UI state immediately
       setLiveCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
       setMapRegion({
         latitude: loc.coords.latitude,
@@ -170,10 +209,20 @@ export default function ActiveTripScreen() {
       });
       const speedMs = loc.coords.speed ?? 0;
       setLiveSpeed(Math.max(0, speedMs * 3.6));
-
-      const { data: trip } = await api.trips.create(vehicleType, placement);
       setActiveTrip(trip);
 
+      if (!isFallback) {
+        setRoute([{ latitude: loc.coords.latitude, longitude: loc.coords.longitude }]);
+        lastCoordRef.current = { lat: loc.coords.latitude, lng: loc.coords.longitude };
+      } else {
+        setRoute([]);
+        lastCoordRef.current = null;
+      }
+
+      // Start timer immediately — don't wait for sensors
+      timerRef.current = setInterval(() => incrementElapsed(), 1000);
+
+      // Start sensors and location watch (non-blocking — don't await serially)
       const engine = new SensorEngine({
         tripId: trip.id,
         vehicleType,
@@ -185,30 +234,48 @@ export default function ActiveTripScreen() {
         }
       });
       engineRef.current = engine;
-      await engine.start();
 
-      setRoute([{ latitude: loc.coords.latitude, longitude: loc.coords.longitude }]);
-      timerRef.current = setInterval(() => incrementElapsed(), 1000);
+      // Fire both in parallel — sensor start + location watch
+      // Use catch to prevent engine start or location watch failures from breaking the active screen
+      try {
+        const [, locSub] = await Promise.all([
+          engine.start().catch((err) => {
+            console.warn('[startTrip] SensorEngine start failed:', err);
+          }),
+          Location.watchPositionAsync(
+            { distanceInterval: 20, accuracy: Location.Accuracy.Balanced },
+            (loc) => {
+              const point = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+              setLiveCoords(point);
+              const speedMs = loc.coords.speed ?? 0;
+              setLiveSpeed(Math.max(0, speedMs * 3.6));
 
-      locSubRef.current = await Location.watchPositionAsync(
-        { distanceInterval: 20, accuracy: Location.Accuracy.Balanced },
-        (loc) => {
-          const point = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
-          setRoute((r) => [...r, point]);
-          setLiveCoords(point);
-          const speedMs = loc.coords.speed ?? 0;
-          setLiveSpeed(Math.max(0, speedMs * 3.6));
+              // Track distance and route polyline
+              if (lastCoordRef.current) {
+                const d = haversineKm(lastCoordRef.current.lat, lastCoordRef.current.lng, point.latitude, point.longitude);
+                if (d > 0.005) {
+                  incrementDistance(d); // ignore GPS noise < 5m
+                  setRoute((r) => [...r, point]);
+                }
+              } else {
+                // First real coordinate
+                setRoute([point]);
+              }
+              lastCoordRef.current = { lat: point.latitude, lng: point.longitude };
 
-          // Track distance
-          if (lastCoordRef.current) {
-            const d = haversineKm(lastCoordRef.current.lat, lastCoordRef.current.lng, point.latitude, point.longitude);
-            if (d > 0.005) incrementDistance(d); // ignore GPS noise < 5m
-          }
-          lastCoordRef.current = { lat: point.latitude, lng: point.longitude };
-
-          mapRef.current?.animateToRegion({ ...point, latitudeDelta: 0.01, longitudeDelta: 0.01 });
+              mapRef.current?.animateToRegion({ ...point, latitudeDelta: 0.01, longitudeDelta: 0.01 });
+            }
+          ).catch((err) => {
+            console.warn('[startTrip] Location watch failed:', err);
+            return null;
+          }),
+        ]);
+        if (locSub) {
+          locSubRef.current = locSub;
         }
-      );
+      } catch (err) {
+        console.warn('[startTrip] Non-critical initialization error:', err);
+      }
     } catch (e: any) {
       Alert.alert('Error', e.message ?? 'Failed to start trip');
     } finally {

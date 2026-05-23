@@ -60,7 +60,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "b21834cb-ecf6-4897-9def-253ce577c0c8"
+        "projectId": "8810d39a-ced4-4608-a9c4-30e263689c72"
       }
     },
     "ios": {
@@ -71,6 +71,6 @@
         "NSLocationAlwaysUsageDescription": "RoadSense needs background location to detect road conditions while driving."
       }
     },
-    "owner": "soumya.chk"
+    "owner": "soumyachk1"
   }
 }

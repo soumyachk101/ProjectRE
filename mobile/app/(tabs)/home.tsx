@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import MapView, { Marker, UrlTile, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
+import { getLocationSafe, ensureLocationPermission } from '../../services/location';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -90,16 +91,17 @@ export default function HomeScreen() {
 
   useEffect(() => {
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
-
-      const servicesEnabled = await Location.hasServicesEnabledAsync();
-      if (!servicesEnabled) return;
+      const permitted = await ensureLocationPermission();
+      if (!permitted) {
+        Alert.alert(
+          'Location Required',
+          'Please grant location permission and ensure GPS is enabled to use RoadSense.',
+        );
+        return;
+      }
 
       try {
-        const loc = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
+        const loc = await getLocationSafe({ accuracy: Location.Accuracy.Balanced, timeoutMs: 10000 });
         const userRegion = {
           latitude: loc.coords.latitude,
           longitude: loc.coords.longitude,
@@ -122,8 +124,12 @@ export default function HomeScreen() {
             setRegion(newRegion);
           },
         );
-      } catch {
-        // GPS unavailable — map shows default region
+      } catch (e: any) {
+        console.warn('Location detection failed:', e.message);
+        Alert.alert(
+          'Location Unavailable',
+          'Could not detect your current location. Please ensure GPS is enabled and try again.',
+        );
       }
     })();
     return () => { locSubRef.current?.remove(); };
@@ -240,17 +246,21 @@ export default function HomeScreen() {
       <TouchableOpacity
         style={styles.locationBtn}
         onPress={async () => {
-          const { status } = await Location.requestForegroundPermissionsAsync();
-          if (status !== 'granted') return;
-          const loc = await Location.getCurrentPositionAsync({});
-          const userRegion = {
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
-            latitudeDelta: 0.02,
-            longitudeDelta: 0.02,
-          };
-          setRegion(userRegion);
-          mapRef.current?.animateToRegion(userRegion);
+          try {
+            const permitted = await ensureLocationPermission();
+            if (!permitted) return;
+            const loc = await getLocationSafe({ timeoutMs: 8000 });
+            const userRegion = {
+              latitude: loc.coords.latitude,
+              longitude: loc.coords.longitude,
+              latitudeDelta: 0.02,
+              longitudeDelta: 0.02,
+            };
+            setRegion(userRegion);
+            mapRef.current?.animateToRegion(userRegion);
+          } catch (e: any) {
+            Alert.alert('Location Error', e.message ?? 'Could not get your location.');
+          }
         }}
         activeOpacity={0.8}
       >

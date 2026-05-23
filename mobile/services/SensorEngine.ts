@@ -99,23 +99,35 @@ export class SensorEngine {
   }
 
   async start(): Promise<void> {
-    Accelerometer.setUpdateInterval(SAMPLE_INTERVAL_MS);
-
-    this.accelSub = Accelerometer.addListener(({ x, y, z }) => {
-      this.processSample(x, y, z);
-    });
-
-    this.locationSub = await Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1000, distanceInterval: 1 },
-      (loc) => {
-        this.currentLat = loc.coords.latitude;
-        this.currentLng = loc.coords.longitude;
-        const speedMs = loc.coords.speed ?? 0;
-        this.currentSpeed = Math.max(0, speedMs * 3.6); // m/s → km/h
-        this.speedHistory.push(this.currentSpeed);
-        if (this.speedHistory.length > 30) this.speedHistory.shift();
+    try {
+      const isAccelAvailable = await Accelerometer.isAvailableAsync();
+      if (isAccelAvailable) {
+        Accelerometer.setUpdateInterval(SAMPLE_INTERVAL_MS);
+        this.accelSub = Accelerometer.addListener(({ x, y, z }) => {
+          this.processSample(x, y, z);
+        });
+      } else {
+        console.warn('[SensorEngine] Accelerometer is not available on this device/simulator.');
       }
-    );
+    } catch (e) {
+      console.warn('[SensorEngine] Failed to check or initialize accelerometer:', e);
+    }
+
+    try {
+      this.locationSub = await Location.watchPositionAsync(
+        { accuracy: Location.Accuracy.High, timeInterval: 1000, distanceInterval: 1 },
+        (loc) => {
+          this.currentLat = loc.coords.latitude;
+          this.currentLng = loc.coords.longitude;
+          const speedMs = loc.coords.speed ?? 0;
+          this.currentSpeed = Math.max(0, speedMs * 3.6); // m/s → km/h
+          this.speedHistory.push(this.currentSpeed);
+          if (this.speedHistory.length > 30) this.speedHistory.shift();
+        }
+      );
+    } catch (e) {
+      console.warn('[SensorEngine] watchPositionAsync failed in SensorEngine:', e);
+    }
 
     this.flushInterval = setInterval(() => this.flush(), 3000);
   }

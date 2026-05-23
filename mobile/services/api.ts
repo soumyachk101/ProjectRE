@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/auth';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://projectre-production.up.railway.app/api/v1';
 
-const client = axios.create({ baseURL: BASE_URL, timeout: 30000 });
+const client = axios.create({ baseURL: BASE_URL, timeout: 15000 });
 
 client.interceptors.request.use(async (config) => {
   const token = await SecureStore.getItemAsync('access_token');
