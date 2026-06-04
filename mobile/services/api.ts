@@ -90,7 +90,7 @@ export const api = {
     nearby: (lat: number, lng: number, radiusM: number = 5000) =>
       client.get('/events', { params: { lat, lng, radius_m: radiusM } }),
     bbox: (lat1: number, lng1: number, lat2: number, lng2: number) =>
-      client.get('/events', { params: { bbox: `${lat1},${lng1},${lat2},${lng2}` } }),
+      client.get('/events/bbox', { params: { bbox: `${lat1},${lng1},${lat2},${lng2}` } }),
     report: (report: ManualReport) =>
       client.post('/events/report', report),
     quality: (lat: number, lng: number, radiusM: number = 500) =>
