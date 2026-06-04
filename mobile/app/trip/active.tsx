@@ -4,6 +4,9 @@ import MapView, { Polyline, UrlTile } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { getLocationSafe, ensureLocationPermission } from '../../services/location';
 import * as SecureStore from 'expo-secure-store';
+import { writeAsStringAsync, cacheDirectory, EncodingType } from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+import * as Print from 'expo-print';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,7 +19,7 @@ import { useTripStore } from '../../store/trip';
 import { useEventsStore } from '../../store/events';
 import { PocCandidate } from '../../types';
 import { colors, gradients, spacing, typography, radius, shadows } from '../../constants/theme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { StatCard } from '../../components/ui/StatCard';
 
 const OSM_TILE_URL = 'https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png';
@@ -50,6 +53,18 @@ export default function ActiveTripScreen() {
   // Interactive confirmations queue
   const [confirmationsQueue, setConfirmationsQueue] = useState<PocCandidate[]>([]);
   const [countdown, setCountdown] = useState(8);
+
+  // Post-trip summary and export
+  const [showSummary, setShowSummary] = useState(false);
+  const [completedTripDetails, setCompletedTripDetails] = useState<{
+    tripId: string;
+    distanceKm: number;
+    durationFormatted: string;
+    eventCount: number;
+    events: PocCandidate[];
+    vehicleType: string;
+    placement: string;
+  } | null>(null);
 
   const soundEnabledRef = useRef(true);
   useEffect(() => {
@@ -212,6 +227,214 @@ export default function ActiveTripScreen() {
     }
   };
 
+  const exportToCSV = async () => {
+    if (!completedTripDetails) return;
+    try {
+      const header = 'Trip ID,Vehicle Type,Placement,Distance (km),Duration,Total Events\n';
+      const meta = `"${completedTripDetails.tripId}","${completedTripDetails.vehicleType}","${completedTripDetails.placement}",${completedTripDetails.distanceKm.toFixed(2)},"${completedTripDetails.durationFormatted}",${completedTripDetails.eventCount}\n\n`;
+      const eventHeader = 'Event Type,Latitude,Longitude,Timestamp,Speed (km/h),Z-Value (g)\n';
+      const rows = completedTripDetails.events.map(poc => {
+        const type = poc.z_value < 0 ? 'Pothole' : 'Speed Breaker';
+        const time = new Date(poc.recorded_at).toLocaleTimeString();
+        return `"${type}",${poc.lat.toFixed(6)},${poc.lng.toFixed(6)},"${time}",${poc.speed_kmh.toFixed(1)},${poc.z_value.toFixed(3)}`;
+      }).join('\n');
+
+      const csvContent = header + meta + eventHeader + rows;
+      const fileUri = `${cacheDirectory}trip_report_${completedTripDetails.tripId}.csv`;
+      
+      await writeAsStringAsync(fileUri, csvContent, { encoding: EncodingType.UTF8 });
+      await Sharing.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Share Trip CSV Report' });
+    } catch (e: any) {
+      Alert.alert('Export Error', e.message || 'Failed to export CSV');
+    }
+  };
+
+  const exportToExcel = async () => {
+    if (!completedTripDetails) return;
+    try {
+      const header = 'Trip ID\tVehicle Type\tPlacement\tDistance (km)\tDuration\tTotal Events\n';
+      const meta = `${completedTripDetails.tripId}\t${completedTripDetails.vehicleType}\t${completedTripDetails.placement}\t${completedTripDetails.distanceKm.toFixed(2)}\t${completedTripDetails.durationFormatted}\t${completedTripDetails.eventCount}\n\n`;
+      const eventHeader = 'Event Type\tLatitude\tLongitude\tTimestamp\tSpeed (km/h)\tZ-Value (g)\n';
+      const rows = completedTripDetails.events.map(poc => {
+        const type = poc.z_value < 0 ? 'Pothole' : 'Speed Breaker';
+        const time = new Date(poc.recorded_at).toLocaleTimeString();
+        return `${type}\t${poc.lat.toFixed(6)}\t${poc.lng.toFixed(6)}\t${time}\t${poc.speed_kmh.toFixed(1)}\t${poc.z_value.toFixed(3)}`;
+      }).join('\n');
+
+      const excelContent = header + meta + eventHeader + rows;
+      const fileUri = `${cacheDirectory}trip_report_${completedTripDetails.tripId}.xls`;
+      
+      await writeAsStringAsync(fileUri, excelContent, { encoding: EncodingType.UTF8 });
+      await Sharing.shareAsync(fileUri, { mimeType: 'application/vnd.ms-excel', dialogTitle: 'Share Trip Excel Report' });
+    } catch (e: any) {
+      Alert.alert('Export Error', e.message || 'Failed to export Excel');
+    }
+  };
+
+  const exportToPDF = async () => {
+    if (!completedTripDetails) return;
+    try {
+      const htmlContent = `
+        <html>
+        <head>
+          <style>
+            body {
+              font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+              background-color: #f4f1ea;
+              color: #1c1b18;
+              padding: 40px;
+            }
+            h1 {
+              font-size: 28px;
+              color: #1c1b18;
+              border-bottom: 2px solid #1c1b18;
+              padding-bottom: 12px;
+              margin-bottom: 24px;
+              font-weight: bold;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .meta-grid {
+              display: flex;
+              flex-wrap: wrap;
+              margin-bottom: 30px;
+              gap: 20px;
+            }
+            .meta-card {
+              background: #ffffff;
+              padding: 16px;
+              border-radius: 8px;
+              border: 1px solid #e3ddd0;
+              flex: 1;
+              min-width: 140px;
+            }
+            .meta-label {
+              font-size: 10px;
+              color: #8a857a;
+              text-transform: uppercase;
+              font-weight: bold;
+              letter-spacing: 0.5px;
+            }
+            .meta-val {
+              font-size: 20px;
+              font-weight: bold;
+              color: #1c1b18;
+              margin-top: 6px;
+            }
+            h2 {
+              font-size: 18px;
+              color: #2f4858;
+              margin-top: 30px;
+              margin-bottom: 15px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 10px;
+              background: #ffffff;
+              border-radius: 8px;
+              overflow: hidden;
+              border: 1px solid #e3ddd0;
+            }
+            th {
+              background: #1c1b18;
+              color: #ffffff;
+              padding: 12px 16px;
+              text-align: left;
+              font-size: 11px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            td {
+              padding: 12px 16px;
+              border-bottom: 1px solid #e3ddd0;
+              font-size: 13px;
+              color: #5a564c;
+            }
+            tr:last-child td {
+              border-bottom: none;
+            }
+            .pothole-badge {
+              color: #a8392c;
+              font-weight: bold;
+            }
+            .breaker-badge {
+              color: #b6803d;
+              font-weight: bold;
+            }
+          </style>
+        </head>
+        <body>
+          <h1>RoadSense AI — Trip Report</h1>
+          <div class="meta-grid">
+            <div class="meta-card">
+              <div class="meta-label">Trip ID</div>
+              <div class="meta-val" style="font-size: 9px; word-break: break-all; margin-top: 8px;">${completedTripDetails.tripId}</div>
+            </div>
+            <div class="meta-card">
+              <div class="meta-label">Vehicle & Placement</div>
+              <div class="meta-val" style="font-size: 14px; margin-top: 8px;">${completedTripDetails.vehicleType.toUpperCase()} (${completedTripDetails.placement.toUpperCase()})</div>
+            </div>
+            <div class="meta-card">
+              <div class="meta-label">Distance Covered</div>
+              <div class="meta-val">${completedTripDetails.distanceKm.toFixed(2)} km</div>
+            </div>
+            <div class="meta-card">
+              <div class="meta-label">Ride Duration</div>
+              <div class="meta-val">${completedTripDetails.durationFormatted}</div>
+            </div>
+            <div class="meta-card">
+              <div class="meta-label">Anomalies Detected</div>
+              <div class="meta-val">${completedTripDetails.eventCount}</div>
+            </div>
+          </div>
+          <h2>Mapped Road Events</h2>
+          ${completedTripDetails.events.length === 0 ? `
+            <div style="background: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #e3ddd0; text-align: center; color: #8a857a;">
+              Clean road detected! No potholes or speed breakers were recorded during this trip.
+            </div>
+          ` : `
+            <table>
+              <thead>
+                <tr>
+                  <th>Event Type</th>
+                  <th>Coordinates (Lat, Lng)</th>
+                  <th>Timestamp</th>
+                  <th>Speed at Peak</th>
+                  <th>Impact Force (g)</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${completedTripDetails.events.map(poc => {
+                  const type = poc.z_value < 0 ? 'Pothole' : 'Speed Breaker';
+                  const time = new Date(poc.recorded_at).toLocaleTimeString();
+                  const badgeClass = poc.z_value < 0 ? 'pothole-badge' : 'breaker-badge';
+                  return `
+                    <tr>
+                      <td><span class="${badgeClass}">${type}</span></td>
+                      <td>${poc.lat.toFixed(5)}, ${poc.lng.toFixed(5)}</td>
+                      <td>${time}</td>
+                      <td>${poc.speed_kmh.toFixed(1)} km/h</td>
+                      <td style="font-family: monospace;">${poc.z_value.toFixed(3)}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          `}
+        </body>
+        </html>
+      `;
+
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+      await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Share Trip PDF Report' });
+    } catch (e: any) {
+      Alert.alert('Export Error', e.message || 'Failed to export PDF');
+    }
+  };
+
   const startTrip = async () => {
     setStarting(true);
     try {
@@ -349,6 +572,14 @@ export default function ActiveTripScreen() {
     }
   };
 
+  const handleCloseSummary = () => {
+    setShowSummary(false);
+    setCompletedTripDetails(null);
+    setEnding(false);
+    router.replace('/(tabs)/home');
+    resetTrip();
+  };
+
   const endTrip = async () => {
     if (!activeTrip || ending) return;
     setEnding(true);
@@ -359,11 +590,19 @@ export default function ActiveTripScreen() {
     locSubRef.current?.remove();
     if (timerRef.current) clearInterval(timerRef.current);
 
-    // Navigate first — user should see home screen immediately
-    router.replace('/(tabs)/home');
-    resetTrip();
+    // Capture trip details for summary screen
+    setCompletedTripDetails({
+      tripId: activeTrip.id,
+      distanceKm: distanceKm,
+      durationFormatted: formatTime(elapsedSeconds),
+      eventCount: eventCount,
+      events: [...pocBufferRef.current],
+      vehicleType: activeTrip.vehicle_type || 'two_wheeler',
+      placement: activeTrip.phone_placement || 'mounter',
+    });
+    setShowSummary(true);
 
-    // Fire API calls in parallel, don't block navigation
+    // Fire API calls in parallel, don't block summary screen
     const tripId = activeTrip.id;
     const pocs = [...pocBufferRef.current];
     pocBufferRef.current = [];
@@ -373,10 +612,14 @@ export default function ActiveTripScreen() {
       tasks.push(api.trips.uploadPoc(tripId, pocs));
     }
 
-    const results = await Promise.allSettled(tasks);
-    const failed = results.filter((r) => r.status === 'rejected');
-    if (failed.length > 0) {
-      console.warn('Trip sync issues:', failed);
+    try {
+      const results = await Promise.allSettled(tasks);
+      const failed = results.filter((r) => r.status === 'rejected');
+      if (failed.length > 0) {
+        console.warn('Trip sync issues:', failed);
+      }
+    } catch (e) {
+      console.warn('Failed background trip sync:', e);
     }
   };
 
@@ -447,6 +690,75 @@ export default function ActiveTripScreen() {
             </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
+      </View>
+    );
+  }
+
+  if (showSummary && completedTripDetails) {
+    return (
+      <View style={styles.summaryContainer}>
+        <LinearGradient colors={gradients.aurora as any} style={StyleSheet.absoluteFill} />
+        <View style={styles.orbOne} />
+        <View style={styles.orbTwo} />
+        <SafeAreaView style={{ flex: 1, paddingHorizontal: spacing.lg }}>
+          <Animated.View entering={FadeInDown.duration(600)} style={styles.summaryContent}>
+            <View style={styles.summaryHeader}>
+              <Text style={styles.summaryEyebrow}>RIDE COMPLETED</Text>
+              <Text style={styles.summaryTitle}>Journey Summary</Text>
+              <Text style={styles.summarySub}>Your trip has been mapped and uploaded.</Text>
+            </View>
+
+            <View style={styles.summaryStatsGrid}>
+              <View style={[styles.summaryStatCard, shadows.sm]}>
+                <MaterialCommunityIcons name="map-marker-distance" size={24} color={colors.accent} />
+                <Text style={styles.summaryStatLabel}>Distance</Text>
+                <Text style={styles.summaryStatVal}>{completedTripDetails.distanceKm.toFixed(2)} km</Text>
+              </View>
+              <View style={[styles.summaryStatCard, shadows.sm]}>
+                <MaterialCommunityIcons name="clock-outline" size={24} color={colors.accent} />
+                <Text style={styles.summaryStatLabel}>Duration</Text>
+                <Text style={styles.summaryStatVal}>{completedTripDetails.durationFormatted}</Text>
+              </View>
+              <View style={[styles.summaryStatCard, shadows.sm]}>
+                <MaterialCommunityIcons name="alert-circle-outline" size={24} color={colors.danger} />
+                <Text style={styles.summaryStatLabel}>Anomalies</Text>
+                <Text style={styles.summaryStatVal}>{completedTripDetails.eventCount}</Text>
+              </View>
+            </View>
+
+            <View style={[styles.exportCard, shadows.md]}>
+              <Text style={styles.exportCardTitle}>Export Trip Report</Text>
+              <Text style={styles.exportCardSub}>Download or share the details of this trip in your preferred format:</Text>
+              
+              <View style={styles.exportBtnsWrap}>
+                <TouchableOpacity onPress={exportToCSV} activeOpacity={0.8} style={styles.exportBtn}>
+                  <LinearGradient colors={gradients.primary as any} style={styles.exportBtnGradient}>
+                    <MaterialCommunityIcons name="file-delimited-outline" size={18} color="#fff" />
+                    <Text style={styles.exportBtnText}>CSV Report</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={exportToExcel} activeOpacity={0.8} style={styles.exportBtn}>
+                  <LinearGradient colors={gradients.accent as any} style={styles.exportBtnGradient}>
+                    <MaterialCommunityIcons name="file-excel-outline" size={18} color="#fff" />
+                    <Text style={styles.exportBtnText}>Excel Report</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={exportToPDF} activeOpacity={0.8} style={styles.exportBtn}>
+                  <LinearGradient colors={gradients.danger as any} style={styles.exportBtnGradient}>
+                    <MaterialCommunityIcons name="file-pdf-box" size={18} color="#fff" />
+                    <Text style={styles.exportBtnText}>PDF Report</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <TouchableOpacity onPress={handleCloseSummary} activeOpacity={0.85} style={styles.closeSummaryBtn}>
+              <Text style={styles.closeSummaryBtnText}>Done & Return Home</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </SafeAreaView>
       </View>
     );
   }
@@ -1028,5 +1340,114 @@ const styles = StyleSheet.create({
   confirmProgressBar: {
     height: '100%',
     backgroundColor: colors.accent,
+  },
+  // Summary styles
+  summaryContainer: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  summaryContent: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingVertical: spacing.xl,
+    gap: spacing.xl,
+  },
+  summaryHeader: {
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  summaryEyebrow: {
+    ...typography.label,
+    color: colors.accent,
+    marginBottom: spacing.xs,
+  },
+  summaryTitle: {
+    ...typography.display,
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  summarySub: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  summaryStatsGrid: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  summaryStatCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: spacing.md,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 6,
+  },
+  summaryStatLabel: {
+    ...typography.caption,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    fontWeight: '600',
+  },
+  summaryStatVal: {
+    ...typography.h2,
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  exportCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: spacing.sm,
+  },
+  exportCardTitle: {
+    ...typography.h2,
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  exportCardSub: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  exportBtnsWrap: {
+    flexDirection: 'column',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  exportBtn: {
+    borderRadius: radius.pill,
+    overflow: 'hidden',
+  },
+  exportBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    gap: spacing.sm,
+  },
+  exportBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  closeSummaryBtn: {
+    paddingVertical: 16,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(28,27,24,0.06)',
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.md,
+  },
+  closeSummaryBtnText: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+    fontWeight: '700',
   },
 });

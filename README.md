@@ -113,6 +113,9 @@ Real-time visual feed of oriented accelerometer forces ($X, Y, Z$ in g) throttle
 ### 🗂️ Interactive Confirmations Queue
 A floating glassmorphic overlay card that pops up with haptic feedback when an anomaly is detected. Let's users confirm the event, switch its type, or dismiss it. Features an 8-second auto-dismiss progress bar and pending counter to handle consecutive speed-breakers cleanly without distraction.
 
+### 📄 Trip Report Exports (CSV, Excel, PDF)
+Generates detailed post-trip reports locally on the device immediately after ending a trip. Users can export ride metadata and mapped road anomalies in three formats: standard CSV, MS Excel-compatible tab-separated format (`.xls`), and a beautifully styled PDF report (rendered from custom HTML) with full support for sharing via the native share sheet.
+
 ### 🏆 Gamification & Leaderboard
 Top contributors are ranked by **trip coverage**, **events confirmed**, and **distance traveled** — turning civic data collection into a friendly competition.
 
