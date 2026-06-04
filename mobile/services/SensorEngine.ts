@@ -43,11 +43,19 @@ function autoOrient(ax: number, ay: number, az: number): [number, number, number
 }
 
 // Dynamic threshold — AI_INSTRUCTIONS §4.2
-function computeThreshold(T0: number, speedHistory: number[]): number {
+function computeThreshold(T0: number, speedHistory: number[], eventType: 'speed_breaker' | 'pothole'): number {
   if (!speedHistory.length) return T0;
   const avgSpeed = speedHistory.reduce((a, b) => a + b, 0) / speedHistory.length;
   if (avgSpeed > THRESHOLD_CONFIG.B) {
-    return T0 + (avgSpeed - THRESHOLD_CONFIG.L) * THRESHOLD_CONFIG.S;
+    const S = eventType === 'speed_breaker' ? THRESHOLD_CONFIG.S : -THRESHOLD_CONFIG.S;
+    const Tt = T0 + (avgSpeed - THRESHOLD_CONFIG.L) * S;
+    // Clamp to prevent negative/unphysically low thresholds for potholes
+    // and keep speed-breaker thresholds within a reasonable detection range
+    if (eventType === 'pothole') {
+      return Math.max(0.15, Tt);
+    } else {
+      return Math.min(4.0, Math.max(0.5, Tt));
+    }
   }
   return T0;
 }
@@ -88,6 +96,16 @@ export class SensorEngine {
 
   private sampleCount = 0;
   private prevZ: number | null = null;
+
+  private sensorListeners: ((data: { x: number; y: number; z: number }) => void)[] = [];
+  private lastRecordedPocIndex: number | null = null;
+
+  addSensorListener(listener: (data: { x: number; y: number; z: number }) => void): () => void {
+    this.sensorListeners.push(listener);
+    return () => {
+      this.sensorListeners = this.sensorListeners.filter((l) => l !== listener);
+    };
+  }
 
   constructor(opts: SensorEngineOptions) {
     this.tripId = opts.tripId;
@@ -146,8 +164,12 @@ export class SensorEngine {
     const [ax_v, ay_v, az_v] = autoOrient(ax, ay, az);
 
     // Call callback throttled to avoid blocking UI thread (every 10 samples, ~66ms)
-    if (this.onSensorData && this.sampleCount % 10 === 0) {
-      this.onSensorData({ x: ax_v, y: ay_v, z: az_v });
+    if (this.sampleCount % 10 === 0) {
+      const sensorData = { x: ax_v, y: ay_v, z: az_v };
+      if (this.onSensorData) {
+        this.onSensorData(sensorData);
+      }
+      this.sensorListeners.forEach((l) => l(sensorData));
     }
 
     // Low-pass filter — extract vertical component
@@ -166,12 +188,21 @@ export class SensorEngine {
         placementKey as 'mounter' | 'pocket'
       ] ?? INITIAL_THRESHOLDS.pothole[this.vehicleType].mounter;
 
-    const sbThreshold = computeThreshold(sbT0, this.speedHistory);
-    const phThreshold = computeThreshold(phT0, this.speedHistory);
+    const sbThreshold = computeThreshold(sbT0, this.speedHistory, 'speed_breaker');
+    const phThreshold = computeThreshold(phT0, this.speedHistory, 'pothole');
 
-    const absZ = Math.abs(z_filtered);
+    // Upward acceleration (>0) -> Speed Breaker candidate
+    // Downward acceleration (<0) -> Pothole candidate
+    const isSb = z_filtered > 0 && z_filtered > sbThreshold;
+    const isPh = z_filtered < 0 && z_filtered < -phThreshold;
 
-    if (absZ > sbThreshold || absZ > phThreshold) {
+    // If the previous sample triggered a PoC, we can set its z_next to the current sample's z_filtered
+    if (this.lastRecordedPocIndex !== null && this.pocBuffer.length > this.lastRecordedPocIndex) {
+      this.pocBuffer[this.lastRecordedPocIndex].z_next = z_filtered;
+      this.lastRecordedPocIndex = null;
+    }
+
+    if (isSb || isPh) {
       const poc: PocCandidate = {
         trip_id: this.tripId,
         lat: this.currentLat,
@@ -181,10 +212,11 @@ export class SensorEngine {
         z_prev: this.prevZ,
         tp: Date.now() / 1000,
         speed_kmh: this.currentSpeed,
-        threshold_used: Math.min(sbThreshold, phThreshold),
+        threshold_used: isSb ? sbThreshold : phThreshold,
         recorded_at: new Date().toISOString(),
       };
       this.pocBuffer.push(poc);
+      this.lastRecordedPocIndex = this.pocBuffer.length - 1;
       this.onPocDetected(poc);
     }
 

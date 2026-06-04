@@ -107,8 +107,11 @@ Geo-localizes events by clustering detections **across distinct trips**. A potho
 ### 🔊 Real-Time Proximity & Sound Alerts
 Instant **haptic pulses**, full-screen warning overlays, and **audible notification beeps** (via `expo-av`) alert active drivers to oncoming anomalies. Features a sound toggle directly on the active ride screen.
 
-### 📊 Live Telemetry & Confirmations Feed
-Real-time visual feed of oriented accelerometer forces ($X, Y, Z$ in g) throttled to 15Hz, live GPS coordinates (longitude/latitude), current speed, and recent session confirmation logs.
+### 📊 Optimized Live Telemetry Feed
+Real-time visual feed of oriented accelerometer forces ($X, Y, Z$ in g) throttled to 4Hz (previously 15Hz) to keep it smooth and decouple high-frequency updates from heavy map re-renders.
+
+### 🗂️ Interactive Confirmations Queue
+A floating glassmorphic overlay card that pops up with haptic feedback when an anomaly is detected. Let's users confirm the event, switch its type, or dismiss it. Features an 8-second auto-dismiss progress bar and pending counter to handle consecutive speed-breakers cleanly without distraction.
 
 ### 🏆 Gamification & Leaderboard
 Top contributors are ranked by **trip coverage**, **events confirmed**, and **distance traveled** — turning civic data collection into a friendly competition.
@@ -193,6 +196,12 @@ Static thresholds break above 40 km/h. RoadSense scales the vertical-acceleratio
 
 $$T_t = \begin{cases} T_0 + (V - L) \cdot S & \text{if } V > B \\ T_0 & \text{otherwise} \end{cases}$$
 
+Pothole dynamic thresholds correctly decrease with speed (using negative $S$) to stay sensitive at higher velocities, clamped to a minimum of `0.15g`. Speed-breaker thresholds increase with speed (using positive $S$), clamped between `0.5g` and `4.0g` to prevent unphysical values.
+
+Detections are gated by acceleration direction:
+- **Upward spikes** (`z_filtered > 0`) are validated against the speed-breaker threshold.
+- **Downward spikes** (`z_filtered < 0`) are validated against the pothole threshold.
+
 <div align="center">
 
 | Symbol | Meaning | Typical Value |
@@ -213,7 +222,8 @@ $$\vec{x} = \begin{bmatrix} Z_t & Z_{\text{next}} & Z_{\text{prev}} & T_p & S_p 
 | Feature | What It Captures |
 | :---: | :--- |
 | **Zₜ** | Peak vertical acceleration at detection |
-| **Z_next** / **Z_prev** | Local peaks in a ±Δ window — reveals event shape |
+| **Z_next** | Captured immediately on the sample following the peak — reveals event shape |
+| **Z_prev** | Vertical acceleration of the sample preceding the peak |
 | **Tₚ** | Time since the last event — dense bursts ⇒ *broken patch* |
 | **Sₚ** | GPS-reported vehicle speed at the moment |
 

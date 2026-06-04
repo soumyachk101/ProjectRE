@@ -41,11 +41,15 @@ export default function ActiveTripScreen() {
   });
 
   // Live telemetry features
-  const [liveSensors, setLiveSensors] = useState({ x: 0, y: 0, z: 0 });
+  const [engineInstance, setEngineInstance] = useState<SensorEngine | null>(null);
   const [liveCoords, setLiveCoords] = useState({ latitude: 0, longitude: 0 });
   const [liveSpeed, setLiveSpeed] = useState(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [recentDetections, setRecentDetections] = useState<{ id: string; type: string; time: string }[]>([]);
+  
+  // Interactive confirmations queue
+  const [confirmationsQueue, setConfirmationsQueue] = useState<PocCandidate[]>([]);
+  const [countdown, setCountdown] = useState(8);
 
   const soundEnabledRef = useRef(true);
   useEffect(() => {
@@ -94,6 +98,56 @@ export default function ActiveTripScreen() {
   const lastCoordRef = useRef<{ lat: number; lng: number } | null>(null);
   const incrementDistance = useTripStore((s) => s.incrementDistance);
 
+  // Auto-dismiss/process items in confirmations queue
+  useEffect(() => {
+    if (!confirmationsQueue.length) return;
+    setCountdown(8);
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setConfirmationsQueue((q) => q.slice(1));
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [confirmationsQueue]);
+
+  const handleConfirmDetection = async (poc: PocCandidate, asDetected: boolean) => {
+    // Remove from queue immediately
+    setConfirmationsQueue((q) => q.slice(1));
+
+    const finalType = asDetected
+      ? (poc.z_value < 0 ? 'pothole' : 'speed_breaker')
+      : (poc.z_value < 0 ? 'speed_breaker' : 'pothole');
+
+    try {
+      await api.events.report({
+        event_type: finalType,
+        lat: poc.lat,
+        lng: poc.lng,
+        note: 'Auto-detected and user-confirmed',
+      });
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      const id = Math.random().toString(36).substring(7);
+      setRecentDetections((prev) => [
+        { id, type: finalType, time: `${new Date().toLocaleTimeString()} (Confirmed)` },
+        ...prev.slice(0, 4)
+      ]);
+    } catch (e) {
+      console.warn('Failed to submit user confirmation:', e);
+    }
+  };
+
+  const handleDismissDetection = () => {
+    setConfirmationsQueue((q) => q.slice(1));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
   const handlePocDetected = useCallback((poc: PocCandidate) => {
     incrementEvents();
     const eventType = poc.z_value < 0 ? 'pothole' : 'speed_breaker';
@@ -114,6 +168,9 @@ export default function ActiveTripScreen() {
     if (soundEnabledRef.current) {
       playAlertSound(eventType);
     }
+
+    // Queue for interactive user confirmation
+    setConfirmationsQueue((prev) => [...prev, poc]);
   }, []);
 
   const handleFlush = useCallback(async (pocs: PocCandidate[]) => {
@@ -181,18 +238,25 @@ export default function ActiveTripScreen() {
       } catch (err: any) {
         console.warn('[startTrip] Initial location fetch failed, using fallback:', err.message);
         isFallback = true;
-        loc = {
-          coords: {
-            latitude: 23.55,
-            longitude: 87.31,
-            altitude: null,
-            accuracy: null,
-            altitudeAccuracy: null,
-            heading: null,
-            speed: 0,
-          },
-          timestamp: Date.now(),
-        } as Location.LocationObject;
+        
+        // Try to retrieve any last known location as a better fallback
+        const lastKnownAny = await Location.getLastKnownPositionAsync().catch(() => null);
+        if (lastKnownAny) {
+          loc = lastKnownAny;
+        } else {
+          loc = {
+            coords: {
+              latitude: 23.55,
+              longitude: 87.31,
+              altitude: null,
+              accuracy: null,
+              altitudeAccuracy: null,
+              heading: null,
+              speed: 0,
+            },
+            timestamp: Date.now(),
+          } as Location.LocationObject;
+        }
       }
 
       // Create a trip on the backend. This is critical.
@@ -229,11 +293,9 @@ export default function ActiveTripScreen() {
         placement,
         onPocDetected: handlePocDetected,
         onFlush: handleFlush,
-        onSensorData: (data) => {
-          setLiveSensors(data);
-        }
       });
       engineRef.current = engine;
+      setEngineInstance(engine);
 
       // Fire both in parallel — sensor start + location watch
       // Use catch to prevent engine start or location watch failures from breaking the active screen
@@ -277,7 +339,11 @@ export default function ActiveTripScreen() {
         console.warn('[startTrip] Non-critical initialization error:', err);
       }
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'Failed to start trip');
+      const errMsg = e.response?.data?.detail
+        ? (typeof e.response.data.detail === 'string' ? e.response.data.detail : JSON.stringify(e.response.data.detail))
+        : (e.message ?? 'Failed to start trip');
+      console.error('[startTrip] Failed to start trip:', e);
+      Alert.alert('Error Starting Trip', errMsg);
     } finally {
       setStarting(false);
     }
@@ -289,6 +355,7 @@ export default function ActiveTripScreen() {
 
     // Stop sensors and location immediately
     engineRef.current?.stop();
+    setEngineInstance(null);
     locSubRef.current?.remove();
     if (timerRef.current) clearInterval(timerRef.current);
 
@@ -316,6 +383,7 @@ export default function ActiveTripScreen() {
   useEffect(() => {
     return () => {
       engineRef.current?.stop();
+      setEngineInstance(null);
       locSubRef.current?.remove();
       if (timerRef.current) clearInterval(timerRef.current);
     };
@@ -438,22 +506,7 @@ export default function ActiveTripScreen() {
             </TouchableOpacity>
           </View>
           
-          <View style={styles.telemetryGrid}>
-            <View style={styles.telemetryCol}>
-              <Text style={styles.telemetryLabel}>X Force (g)</Text>
-              <Text style={styles.telemetryValue}>{liveSensors.x.toFixed(3)}</Text>
-            </View>
-            <View style={styles.telemetryDivider} />
-            <View style={styles.telemetryCol}>
-              <Text style={styles.telemetryLabel}>Y Force (g)</Text>
-              <Text style={styles.telemetryValue}>{liveSensors.y.toFixed(3)}</Text>
-            </View>
-            <View style={styles.telemetryDivider} />
-            <View style={styles.telemetryCol}>
-              <Text style={styles.telemetryLabel}>Z Force (g)</Text>
-              <Text style={styles.telemetryValue}>{liveSensors.z.toFixed(3)}</Text>
-            </View>
-          </View>
+          <TelemetryDisplay engine={engineInstance} />
 
           <View style={styles.telemetryDetails}>
             <View style={styles.detailRow}>
@@ -486,6 +539,62 @@ export default function ActiveTripScreen() {
           )}
         </BlurView>
       </View>
+
+      {/* Interactive Confirmations Popup */}
+      {confirmationsQueue.length > 0 && (
+        <View style={styles.confirmWrap}>
+          <BlurView intensity={90} tint="light" style={styles.confirmBlur}>
+            <View style={styles.confirmHeader}>
+              <MaterialCommunityIcons
+                name={confirmationsQueue[0].z_value < 0 ? "circle-off-outline" : "alert-circle"}
+                size={24}
+                color={confirmationsQueue[0].z_value < 0 ? colors.danger : colors.warning}
+              />
+              <View style={styles.confirmTextContainer}>
+                <Text style={styles.confirmTitle}>
+                  {confirmationsQueue[0].z_value < 0 ? "Pothole Detected" : "Speed Breaker Detected"}
+                  {confirmationsQueue.length > 1 && (
+                    <Text style={styles.confirmBadge}> (+{confirmationsQueue.length - 1} more)</Text>
+                  )}
+                </Text>
+                <Text style={styles.confirmSub}>
+                  Confirm this road event to help others.
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.confirmActions}>
+              <TouchableOpacity
+                style={[styles.confirmBtn, styles.confirmBtnYes]}
+                onPress={() => handleConfirmDetection(confirmationsQueue[0], true)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.confirmBtnTextYes}>Yes, Confirm</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmBtn, styles.confirmBtnSwitch]}
+                onPress={() => handleConfirmDetection(confirmationsQueue[0], false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.confirmBtnTextSwitch}>
+                  {confirmationsQueue[0].z_value < 0 ? "Its Breaker" : "Its Pothole"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmBtn, styles.confirmBtnNo]}
+                onPress={handleDismissDetection}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.confirmBtnTextNo}>Dismiss</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.confirmProgressContainer}>
+              <View style={[styles.confirmProgressBar, { width: `${(countdown / 8) * 100}%` }]} />
+            </View>
+          </BlurView>
+        </View>
+      )}
 
       {/* Quick report buttons */}
       <View style={styles.quickReportWrap}>
@@ -532,6 +641,49 @@ export default function ActiveTripScreen() {
     </View>
   );
 }
+
+const TelemetryDisplay = React.memo(({ engine }: { engine: SensorEngine | null }) => {
+  const [sensors, setSensors] = useState({ x: 0, y: 0, z: 0 });
+
+  useEffect(() => {
+    if (!engine) {
+      setSensors({ x: 0, y: 0, z: 0 });
+      return;
+    }
+
+    let lastUpdate = 0;
+    const unsubscribe = engine.addSensorListener((data) => {
+      const now = Date.now();
+      if (now - lastUpdate > 250) { // update at most 4 times a second (250ms)
+        setSensors(data);
+        lastUpdate = now;
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [engine]);
+
+  return (
+    <View style={styles.telemetryGrid}>
+      <View style={styles.telemetryCol}>
+        <Text style={styles.telemetryLabel}>X Force (g)</Text>
+        <Text style={styles.telemetryValue}>{sensors.x.toFixed(3)}</Text>
+      </View>
+      <View style={styles.telemetryDivider} />
+      <View style={styles.telemetryCol}>
+        <Text style={styles.telemetryLabel}>Y Force (g)</Text>
+        <Text style={styles.telemetryValue}>{sensors.y.toFixed(3)}</Text>
+      </View>
+      <View style={styles.telemetryDivider} />
+      <View style={styles.telemetryCol}>
+        <Text style={styles.telemetryLabel}>Z Force (g)</Text>
+        <Text style={styles.telemetryValue}>{sensors.z.toFixed(3)}</Text>
+      </View>
+    </View>
+  );
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -786,5 +938,95 @@ const styles = StyleSheet.create({
   feedItemTime: {
     fontSize: 10,
     color: colors.textMuted,
+  },
+  confirmWrap: {
+    position: 'absolute',
+    bottom: 250,
+    left: spacing.md,
+    right: spacing.md,
+    borderRadius: radius.card,
+    overflow: 'hidden',
+    backgroundColor: colors.glass,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.lg,
+  },
+  confirmBlur: {
+    padding: spacing.md,
+  },
+  confirmHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  confirmTextContainer: {
+    flex: 1,
+  },
+  confirmTitle: {
+    ...typography.h3,
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  confirmBadge: {
+    fontSize: 11,
+    color: colors.accent,
+    fontWeight: '600',
+  },
+  confirmSub: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  confirmActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  confirmBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  confirmBtnYes: {
+    backgroundColor: colors.success,
+    borderColor: colors.success,
+  },
+  confirmBtnSwitch: {
+    backgroundColor: 'transparent',
+    borderColor: colors.accent,
+  },
+  confirmBtnNo: {
+    backgroundColor: 'transparent',
+    borderColor: colors.border,
+  },
+  confirmBtnTextYes: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  confirmBtnTextSwitch: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  confirmBtnTextNo: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  confirmProgressContainer: {
+    height: 3,
+    backgroundColor: colors.borderLight,
+    width: '100%',
+    marginTop: spacing.sm,
+    borderRadius: 1.5,
+    overflow: 'hidden',
+  },
+  confirmProgressBar: {
+    height: '100%',
+    backgroundColor: colors.accent,
   },
 });
