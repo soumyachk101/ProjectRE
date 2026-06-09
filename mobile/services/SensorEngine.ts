@@ -3,7 +3,7 @@ import * as Location from 'expo-location';
 import { PocCandidate } from '../types';
 
 // Sample rate per AI_INSTRUCTIONS §7
-const SAMPLE_RATE_HZ = 150;
+const SAMPLE_RATE_HZ = 50;
 const SAMPLE_INTERVAL_MS = Math.floor(1000 / SAMPLE_RATE_HZ);
 const FLUSH_EVERY_N = 500;
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import MapView, { Marker, UrlTile, Region } from 'react-native-maps';
+import MapView, { UrlTile, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { getLocationSafe, ensureLocationPermission } from '../../services/location';
@@ -10,7 +10,6 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
   withRepeat,
   withTiming,
   withSequence,
@@ -20,12 +19,13 @@ import { api } from '../../services/api';
 import { useEventsStore } from '../../store/events';
 import { useTripStore } from '../../store/trip';
 import { ConfirmedEvent, EventType } from '../../types';
-import { colors, gradients, spacing, typography, radius, shadows } from '../../constants/theme';
+import { colors, gradients, spacing, typography, radius, shadows, eventColors } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { eventColors } from '../../constants/theme';
 import { EventMarker } from '../../components/map/EventMarker';
 import { EventDetailSheet } from '../../components/map/EventDetailSheet';
 import { SearchBar } from '../../components/map/SearchBar';
+import { syncManager } from '../../services/sync';
+
 const OSM_TILE_URL = 'https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png';
 
 const FILTER_OPTIONS: { key: EventType | 'all'; label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }[] = [
@@ -40,11 +40,16 @@ export default function HomeScreen() {
   const [region, setRegion] = useState<Region>({
     latitude: 23.55, longitude: 87.31, latitudeDelta: 0.05, longitudeDelta: 0.05,
   });
-  const [initialRegion, setInitialRegion] = useState<Region | null>(null);
-  const [selectedEvent, setSelectedEvent] = useState<ConfirmedEvent | null>(null);
   const [locationReady, setLocationReady] = useState(false);
+  const [followUser, setFollowUser] = useState(true);
+  
   const mapRef = useRef<MapView>(null);
   const locSubRef = useRef<Location.LocationSubscription | null>(null);
+  const followUserRef = useRef(followUser);
+
+  useEffect(() => {
+    followUserRef.current = followUser;
+  }, [followUser]);
 
   const filter = useEventsStore((s) => s.filter);
   const setFilter = useEventsStore((s) => s.setFilter);
@@ -52,9 +57,13 @@ export default function HomeScreen() {
   const nearbyEvents = useEventsStore((s) => s.nearbyEvents);
   const activeTrip = useTripStore((s) => s.activeTrip);
 
+  // Quantize coordinates to 3 decimal places (~110m grid) to hit query cache on minor pans
+  const queryLat = parseFloat(region.latitude.toFixed(3));
+  const queryLng = parseFloat(region.longitude.toFixed(3));
+
   const { data: eventsData } = useQuery({
-    queryKey: ['events', region.latitude, region.longitude],
-    queryFn: () => api.events.nearby(region.latitude, region.longitude, 5000),
+    queryKey: ['events', queryLat, queryLng],
+    queryFn: () => api.events.nearby(queryLat, queryLng, 5000),
     refetchInterval: 30000,
   });
 
@@ -79,7 +88,7 @@ export default function HomeScreen() {
       -1,
       true
     );
-  }, []);
+  }, [pulseAnim, glowAnim]);
 
   const liveDotStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseAnim.value }],
@@ -90,8 +99,17 @@ export default function HomeScreen() {
   }));
 
   useEffect(() => {
+    let active = true;
+    let locSub: Location.LocationSubscription | null = null;
+
+    // Trigger opportunistic sync on map mount
+    syncManager.syncOfflineData().catch((e) => {
+      console.warn('[HomeScreen] Offline sync failed:', e);
+    });
+
     (async () => {
       const permitted = await ensureLocationPermission();
+      if (!active) return;
       if (!permitted) {
         Alert.alert(
           'Location Required',
@@ -102,6 +120,8 @@ export default function HomeScreen() {
 
       try {
         const loc = await getLocationSafe({ accuracy: Location.Accuracy.Balanced, timeoutMs: 10000 });
+        if (!active) return;
+
         const userRegion = {
           latitude: loc.coords.latitude,
           longitude: loc.coords.longitude,
@@ -109,22 +129,32 @@ export default function HomeScreen() {
           longitudeDelta: 0.02,
         };
         setRegion(userRegion);
-        setInitialRegion(userRegion);
         setLocationReady(true);
 
-        locSubRef.current = await Location.watchPositionAsync(
+        locSub = await Location.watchPositionAsync(
           { distanceInterval: 10, accuracy: Location.Accuracy.Balanced },
-          (loc) => {
+          (newLoc) => {
+            if (!active) return;
             const newRegion = {
-              latitude: loc.coords.latitude,
-              longitude: loc.coords.longitude,
+              latitude: newLoc.coords.latitude,
+              longitude: newLoc.coords.longitude,
               latitudeDelta: 0.02,
               longitudeDelta: 0.02,
             };
-            setRegion(newRegion);
+            if (followUserRef.current) {
+              setRegion(newRegion);
+              mapRef.current?.animateToRegion(newRegion, 1000);
+            }
           },
         );
+
+        if (!active) {
+          locSub.remove();
+        } else {
+          locSubRef.current = locSub;
+        }
       } catch (e: any) {
+        if (!active) return;
         console.warn('Location detection failed:', e.message);
         Alert.alert(
           'Location Unavailable',
@@ -132,14 +162,21 @@ export default function HomeScreen() {
         );
       }
     })();
-    return () => { locSubRef.current?.remove(); };
+
+    return () => {
+      active = false;
+      locSubRef.current?.remove();
+      if (locSub) {
+        locSub.remove();
+      }
+    };
   }, []);
 
   useEffect(() => {
     if (eventsData?.data) {
       setNearbyEvents(eventsData.data as ConfirmedEvent[]);
     }
-  }, [eventsData]);
+  }, [eventsData, setNearbyEvents]);
 
   const filteredEvents = filter === 'all'
     ? nearbyEvents
@@ -163,7 +200,12 @@ export default function HomeScreen() {
         region={region}
         showsUserLocation
         showsMyLocationButton={false}
-        onRegionChangeComplete={setRegion}
+        onRegionChangeComplete={(newRegion, details) => {
+          setRegion(newRegion);
+          if (details?.isGesture) {
+            setFollowUser(false);
+          }
+        }}
       >
         <UrlTile urlTemplate={OSM_TILE_URL} maximumZ={19} flipY={false} zIndex={1} />
         {filteredEvents.map((event) => (
@@ -200,12 +242,13 @@ export default function HomeScreen() {
       <View style={[styles.searchWrap, { top: insets.top + 82 }]}>
         <SearchBar
           onSelect={(lat, lng) => {
+            setFollowUser(false);
             mapRef.current?.animateToRegion({
               latitude: lat,
               longitude: lng,
               latitudeDelta: 0.02,
               longitudeDelta: 0.02,
-            });
+            }, 1000);
           }}
         />
       </View>
@@ -257,7 +300,8 @@ export default function HomeScreen() {
               longitudeDelta: 0.02,
             };
             setRegion(userRegion);
-            mapRef.current?.animateToRegion(userRegion);
+            setFollowUser(true);
+            mapRef.current?.animateToRegion(userRegion, 1000);
           } catch (e: any) {
             Alert.alert('Location Error', e.message ?? 'Could not get your location.');
           }
@@ -265,10 +309,10 @@ export default function HomeScreen() {
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={gradients.surface as any}
+          colors={followUser ? gradients.accent as any : gradients.surface as any}
           style={styles.locationBtnInner}
         >
-          <MaterialCommunityIcons name="crosshairs-gps" size={20} color={colors.accent} />
+          <MaterialCommunityIcons name="crosshairs-gps" size={20} color={followUser ? "#fff" : colors.accent} />
         </LinearGradient>
       </TouchableOpacity>
 

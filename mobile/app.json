@@ -19,7 +19,7 @@
       "package": "com.roadsense.ai",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyCIr-88RwcPRMhv_GmZ8hXmD9Fmxx-w0Pw"
+          "apiKey": ""
         }
       },
       "permissions": [
@@ -47,8 +47,8 @@
             "compileSdkVersion": 35,
             "targetSdkVersion": 35,
             "minSdkVersion": 24,
-            "enableProguardInReleaseBuilds": false,
-            "enableMinifyInReleaseBuilds": false
+            "enableProguardInReleaseBuilds": true,
+            "enableMinifyInReleaseBuilds": true
           }
         }
       ]

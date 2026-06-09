@@ -16,8 +16,8 @@ import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withRepeat, wit
 import { api } from '../../services/api';
 import { SensorEngine, VehicleType, Placement } from '../../services/SensorEngine';
 import { useTripStore } from '../../store/trip';
-import { useEventsStore } from '../../store/events';
 import { PocCandidate } from '../../types';
+import { syncManager } from '../../services/sync';
 import { colors, gradients, spacing, typography, radius, shadows } from '../../constants/theme';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { StatCard } from '../../components/ui/StatCard';
@@ -52,7 +52,13 @@ export default function ActiveTripScreen() {
   
   // Interactive confirmations queue
   const [confirmationsQueue, setConfirmationsQueue] = useState<PocCandidate[]>([]);
-  const [countdown, setCountdown] = useState(8);
+  const [followUser, setFollowUser] = useState(true);
+  const followUserRef = useRef(followUser);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    followUserRef.current = followUser;
+  }, [followUser]);
 
   // Post-trip summary and export
   const [showSummary, setShowSummary] = useState(false);
@@ -85,7 +91,6 @@ export default function ActiveTripScreen() {
   const setLastEvent = useTripStore((s) => s.setLastEvent);
   const incrementElapsed = useTripStore((s) => s.incrementElapsed);
   const resetTrip = useTripStore((s) => s.resetTrip);
-  const triggerAlert = useEventsStore((s) => s.triggerAlert);
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
@@ -103,7 +108,7 @@ export default function ActiveTripScreen() {
       -1,
       true
     );
-  }, []);
+  }, [pulseAnim]);
 
   const iconStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseAnim.value }],
@@ -113,22 +118,34 @@ export default function ActiveTripScreen() {
   const lastCoordRef = useRef<{ lat: number; lng: number } | null>(null);
   const incrementDistance = useTripStore((s) => s.incrementDistance);
 
+  const progress = useSharedValue(1);
+
+  const progressStyle = useAnimatedStyle(() => ({
+    width: `${progress.value * 100}%`,
+  }));
+
   // Auto-dismiss/process items in confirmations queue
+  const firstItemKey = confirmationsQueue[0]?.recorded_at;
   useEffect(() => {
-    if (!confirmationsQueue.length) return;
-    setCountdown(8);
-    const interval = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          setConfirmationsQueue((q) => q.slice(1));
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [confirmationsQueue]);
+    if (confirmationsQueue.length === 0) return;
+
+    const firstItem = confirmationsQueue[0] as any;
+    const remainingMs = firstItem.expiresAt - Date.now();
+
+    if (remainingMs <= 0) {
+      setConfirmationsQueue((q) => q.slice(1));
+      return;
+    }
+
+    progress.value = remainingMs / 8000;
+    progress.value = withTiming(0, { duration: remainingMs });
+
+    const timer = setTimeout(() => {
+      setConfirmationsQueue((q) => q.slice(1));
+    }, remainingMs);
+
+    return () => clearTimeout(timer);
+  }, [firstItemKey, confirmationsQueue.length, confirmationsQueue, progress]);
 
   const handleConfirmDetection = async (poc: PocCandidate, asDetected: boolean) => {
     // Remove from queue immediately
@@ -185,8 +202,12 @@ export default function ActiveTripScreen() {
     }
 
     // Queue for interactive user confirmation
-    setConfirmationsQueue((prev) => [...prev, poc]);
-  }, []);
+    const pocWithExpiry = {
+      ...poc,
+      expiresAt: Date.now() + 8000,
+    };
+    setConfirmationsQueue((prev) => [...prev, pocWithExpiry]);
+  }, [incrementEvents, setLastEvent]);
 
   const handleFlush = useCallback(async (pocs: PocCandidate[]) => {
     pocBufferRef.current.push(...pocs);
@@ -437,6 +458,7 @@ export default function ActiveTripScreen() {
 
   const startTrip = async () => {
     setStarting(true);
+    syncManager.syncOfflineData().catch(e => console.warn('Offline sync failed:', e));
     try {
       // Ensure location permission is granted BEFORE any GPS calls
       const permitted = await ensureLocationPermission();
@@ -530,6 +552,7 @@ export default function ActiveTripScreen() {
           Location.watchPositionAsync(
             { distanceInterval: 20, accuracy: Location.Accuracy.Balanced },
             (loc) => {
+              if (!isMountedRef.current) return;
               const point = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
               setLiveCoords(point);
               const speedMs = loc.coords.speed ?? 0;
@@ -548,7 +571,9 @@ export default function ActiveTripScreen() {
               }
               lastCoordRef.current = { lat: point.latitude, lng: point.longitude };
 
-              mapRef.current?.animateToRegion({ ...point, latitudeDelta: 0.01, longitudeDelta: 0.01 });
+              if (followUserRef.current) {
+                mapRef.current?.animateToRegion({ ...point, latitudeDelta: 0.01, longitudeDelta: 0.01 });
+              }
             }
           ).catch((err) => {
             console.warn('[startTrip] Location watch failed:', err);
@@ -556,7 +581,11 @@ export default function ActiveTripScreen() {
           }),
         ]);
         if (locSub) {
-          locSubRef.current = locSub;
+          if (!isMountedRef.current || ending) {
+            locSub.remove();
+          } else {
+            locSubRef.current = locSub;
+          }
         }
       } catch (err) {
         console.warn('[startTrip] Non-critical initialization error:', err);
@@ -602,29 +631,46 @@ export default function ActiveTripScreen() {
     });
     setShowSummary(true);
 
-    // Fire API calls in parallel, don't block summary screen
+    // Fire API calls, handle offline storage on failure
     const tripId = activeTrip.id;
     const pocs = [...pocBufferRef.current];
     pocBufferRef.current = [];
 
-    const tasks: Promise<any>[] = [api.trips.end(tripId)];
-    if (pocs.length > 0) {
-      tasks.push(api.trips.uploadPoc(tripId, pocs));
-    }
+    (async () => {
+      let endFailed = false;
+      let pocsFailed = false;
 
-    try {
-      const results = await Promise.allSettled(tasks);
-      const failed = results.filter((r) => r.status === 'rejected');
-      if (failed.length > 0) {
-        console.warn('Trip sync issues:', failed);
+      try {
+        await api.trips.end(tripId);
+      } catch (e) {
+        console.warn('[endTrip] Failed to end trip on server:', e);
+        endFailed = true;
       }
-    } catch (e) {
-      console.warn('Failed background trip sync:', e);
-    }
+
+      if (pocs.length > 0) {
+        try {
+          await api.trips.uploadPoc(tripId, pocs);
+        } catch (e) {
+          console.warn('[endTrip] Failed to upload POCs to server:', e);
+          pocsFailed = true;
+        }
+      }
+
+      if (endFailed || pocsFailed) {
+        await syncManager.saveUnsyncedTrip({
+          tripId,
+          pocs,
+          endNeedsSync: endFailed,
+          pocsNeedSync: pocsFailed,
+        });
+      }
+    })();
   };
 
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
       engineRef.current?.stop();
       setEngineInstance(null);
       locSubRef.current?.remove();
@@ -772,6 +818,11 @@ export default function ActiveTripScreen() {
         initialRegion={mapRegion}
         showsUserLocation
         showsMyLocationButton={false}
+        onRegionChangeComplete={(reg, details) => {
+          if (details?.isGesture) {
+            setFollowUser(false);
+          }
+        }}
       >
         <UrlTile urlTemplate={OSM_TILE_URL} maximumZ={19} flipY={false} zIndex={1} />
         {route.length > 1 && (
@@ -902,11 +953,34 @@ export default function ActiveTripScreen() {
             </View>
 
             <View style={styles.confirmProgressContainer}>
-              <View style={[styles.confirmProgressBar, { width: `${(countdown / 8) * 100}%` }]} />
+              <Animated.View style={[styles.confirmProgressBar, progressStyle]} />
             </View>
           </BlurView>
         </View>
       )}
+
+      {/* GPS Location follow button */}
+      <TouchableOpacity
+        style={styles.locationBtn}
+        onPress={() => {
+          setFollowUser(true);
+          if (liveCoords.latitude && liveCoords.longitude) {
+            mapRef.current?.animateToRegion({
+              ...liveCoords,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            }, 1000);
+          }
+        }}
+        activeOpacity={0.8}
+      >
+        <LinearGradient
+          colors={followUser ? gradients.accent as any : gradients.surface as any}
+          style={styles.locationBtnInner}
+        >
+          <MaterialCommunityIcons name="crosshairs-gps" size={20} color={followUser ? "#fff" : colors.accent} />
+        </LinearGradient>
+      </TouchableOpacity>
 
       {/* Quick report buttons */}
       <View style={styles.quickReportWrap}>
@@ -996,6 +1070,7 @@ const TelemetryDisplay = React.memo(({ engine }: { engine: SensorEngine | null }
     </View>
   );
 });
+TelemetryDisplay.displayName = 'TelemetryDisplay';
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -1449,5 +1524,21 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     color: colors.textPrimary,
     fontWeight: '700',
+  },
+  locationBtn: {
+    position: 'absolute',
+    right: spacing.md,
+    bottom: 230,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    ...shadows.md,
+  },
+  locationBtnInner: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
