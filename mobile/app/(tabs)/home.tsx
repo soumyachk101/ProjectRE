@@ -42,6 +42,7 @@ export default function HomeScreen() {
   });
   const [locationReady, setLocationReady] = useState(false);
   const [followUser, setFollowUser] = useState(true);
+  const [selectedEvent, setSelectedEvent] = useState<ConfirmedEvent | null>(null);
   
   const mapRef = useRef<MapView>(null);
   const locSubRef = useRef<Location.LocationSubscription | null>(null);
