@@ -72,7 +72,7 @@ export default function Register() {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-          <Text style={styles.title}>Let's get started</Text>
+          <Text style={styles.title}>{"Let's get started"}</Text>
           <Text style={styles.sub}>A private road-sensing account for automatic trip detection.</Text>
         </Animated.View>
 

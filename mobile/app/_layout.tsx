@@ -8,15 +8,29 @@ import { useAuthStore } from '../store/auth';
 import { colors } from '../constants/theme';
 import { AlertOverlay } from '../components/alert/AlertOverlay';
 import { ErrorBoundary } from '../components/ui/ErrorBoundary';
+import { syncManager } from '../services/sync';
 
 const queryClient = new QueryClient();
 
 export default function RootLayout() {
   const loadFromStorage = useAuthStore((s) => s.loadFromStorage);
+  const isHydrated = useAuthStore((s) => s.isHydrated);
 
   useEffect(() => {
     loadFromStorage();
   }, []);
+
+  useEffect(() => {
+    if (isHydrated) {
+      syncManager.syncOfflineData().catch((e) => {
+        console.warn('[RootLayout] Offline sync failed:', e);
+      });
+    }
+  }, [isHydrated]);
+
+  if (!isHydrated) {
+    return null;
+  }
 
   return (
     <ErrorBoundary>
@@ -38,3 +52,4 @@ export default function RootLayout() {
     </ErrorBoundary>
   );
 }
+
