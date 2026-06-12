@@ -107,6 +107,7 @@ export class SensorEngine {
   private accelSub: ReturnType<typeof Accelerometer.addListener> | null = null;
   private locationSub: Location.LocationSubscription | null = null;
   private flushInterval: ReturnType<typeof setInterval> | null = null;
+  private running: boolean = false;
 
   private sampleCount = 0;
   private prevZ: number | null = null;
@@ -134,6 +135,17 @@ export class SensorEngine {
   }
 
   async start(): Promise<void> {
+    // Idempotent — safe against Fast Refresh and Start-Trip double-taps.
+    if (this.running) return;
+    this.running = true;
+
+    // Tear down any stray handles left behind by a prior lifecycle.
+    this.accelSub?.remove();
+    this.accelSub = null;
+    this.locationSub?.remove();
+    this.locationSub = null;
+    if (this.flushInterval) { clearInterval(this.flushInterval); this.flushInterval = null; }
+
     try {
       const isAccelAvailable = await Accelerometer.isAvailableAsync();
       if (isAccelAvailable) {
@@ -168,9 +180,12 @@ export class SensorEngine {
   }
 
   stop(): void {
+    this.running = false;
     this.accelSub?.remove();
+    this.accelSub = null;
     this.locationSub?.remove();
-    if (this.flushInterval) clearInterval(this.flushInterval);
+    this.locationSub = null;
+    if (this.flushInterval) { clearInterval(this.flushInterval); this.flushInterval = null; }
     this.flush();
   }
 

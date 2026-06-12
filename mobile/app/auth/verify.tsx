@@ -1,9 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/auth';
 import { colors, gradients, spacing, typography, radius, shadows } from '../../constants/theme';
@@ -12,62 +13,77 @@ import { Button } from '../../components/ui/Button';
 const OTP_LENGTH = 6;
 
 export default function Verify() {
-  const { phone } = useLocalSearchParams<{ phone: string }>();
+  const insets = useSafeAreaInsets();
+  // useLocalSearchParams can return arrays; normalize to a single string.
+  const phoneParam = useLocalSearchParams<{ phone: string | string[] }>().phone;
+  const phone = Array.isArray(phoneParam) ? phoneParam[0] : phoneParam;
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const setTokens = useAuthStore((s) => s.setTokens);
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
-  useEffect(() => {
-    inputRefs.current[0]?.focus();
-  }, []);
-
   const handleOtpChange = (text: string, index: number) => {
-    if (text.length > 1) {
-      // Paste support
-      const digits = text.replace(/\D/g, '').slice(0, OTP_LENGTH).split('');
-      const newOtp = [...otp];
-      digits.forEach((d, i) => {
-        if (index + i < OTP_LENGTH) newOtp[index + i] = d;
-      });
-      setOtp(newOtp);
-      const nextIndex = Math.min(index + digits.length, OTP_LENGTH - 1);
-      inputRefs.current[nextIndex]?.focus();
-      return;
-    }
+    setOtp((prev) => {
+      if (text.length > 1) {
+        // Paste support — split pasted digits across remaining boxes.
+        const digits = text.replace(/\D/g, '').slice(0, OTP_LENGTH).split('');
+        const next = [...prev];
+        digits.forEach((d, i) => {
+          if (index + i < OTP_LENGTH) next[index + i] = d;
+        });
+        const nextIndex = Math.min(index + digits.length, OTP_LENGTH - 1);
+        // Defer focus until after the state update lands, so the new TextInput
+        // value is in place when the OS takes focus.
+        setTimeout(() => {
+          inputRefs.current[nextIndex]?.focus();
+        }, 0);
+        return next;
+      }
 
-    const newOtp = [...otp];
-    newOtp[index] = text;
-    setOtp(newOtp);
-
-    if (text && index < OTP_LENGTH - 1) {
-      inputRefs.current[index + 1]?.focus();
-    }
+      const next = [...prev];
+      next[index] = text;
+      if (text && index < OTP_LENGTH - 1) {
+        setTimeout(() => {
+          inputRefs.current[index + 1]?.focus();
+        }, 0);
+      }
+      return next;
+    });
   };
 
   const handleKeyPress = (e: any, index: number) => {
-    if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
-      const newOtp = [...otp];
-      newOtp[index - 1] = '';
-      setOtp(newOtp);
+    if (e?.nativeEvent?.key !== 'Backspace' || otp[index] || index === 0) return;
+    setOtp((prev) => {
+      const next = [...prev];
+      next[index - 1] = '';
+      return next;
+    });
+    setTimeout(() => {
       inputRefs.current[index - 1]?.focus();
-    }
+    }, 0);
   };
 
   const handleVerify = async () => {
+    if (loading) return;
+    if (!phone) {
+      setError('Invalid verification session. Please request OTP again.');
+      return;
+    }
     const otpStr = otp.join('');
     if (otpStr.length !== OTP_LENGTH) { setError('Enter 6-digit OTP'); return; }
     setLoading(true);
     setError(null);
     try {
-      const { data } = await api.auth.login(phone!, otpStr);
+      const { data } = await api.auth.login(phone, otpStr);
       await setTokens(data.access_token, data.refresh_token);
       router.replace('/(tabs)/home');
     } catch (e: any) {
-      if (e.code === 'ECONNABORTED') {
+      const errorMsg = e?.message || '';
+      const errorCode = e?.code || '';
+      if (errorCode === 'ECONNABORTED') {
         setError('Server is slow. Please try again.');
-      } else if (e.message === 'Network Error' && !e.response) {
+      } else if (errorMsg === 'Network Error' && !e?.response) {
         setError('Cannot reach server. Check your internet connection.');
       } else {
         setError('Wrong OTP. Please try again.');
@@ -80,7 +96,8 @@ export default function Verify() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 12 : 0}
     >
       <LinearGradient colors={gradients.aurora as any} style={StyleSheet.absoluteFill} />
       <View style={styles.orbOne} />
@@ -118,9 +135,10 @@ export default function Verify() {
                 value={digit}
                 onChangeText={(t) => handleOtpChange(t, i)}
                 onKeyPress={(e) => handleKeyPress(e, i)}
-                keyboardType="number-pad"
+                keyboardType="numeric"
+                inputMode="numeric"
                 maxLength={1}
-                selectTextOnFocus
+                autoFocus={i === 0}
               />
             </View>
           ))}

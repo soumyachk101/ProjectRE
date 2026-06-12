@@ -78,6 +78,9 @@ export default function ActiveTripScreen() {
   const [followUser, setFollowUser] = useState(true);
   const followUserRef = useRef(followUser);
   const isMountedRef = useRef(true);
+  // Guards the confirm/dismiss handlers against double-tap races (e.g. a
+  // user mashing "Yes, Confirm" while the network request is in flight).
+  const isProcessingRef = useRef(false);
 
   useEffect(() => {
     followUserRef.current = followUser;
@@ -148,6 +151,10 @@ export default function ActiveTripScreen() {
   }));
 
   const handleConfirmDetection = useCallback(async (poc: PocCandidate, asDetected: boolean, isAutoConfirm: boolean = false) => {
+    // Reject re-entry from a fast double-tap on the confirm button.
+    if (isProcessingRef.current) return;
+    isProcessingRef.current = true;
+
     // Remove from queue immediately
     setConfirmationsQueue((q) => q.slice(1));
 
@@ -172,16 +179,23 @@ export default function ActiveTripScreen() {
       ]);
     } catch (e) {
       console.warn('Failed to submit user confirmation:', e);
+    } finally {
+      isProcessingRef.current = false;
     }
   }, []);
 
   const handleDismissDetection = useCallback(() => {
+    if (isProcessingRef.current) return;
+    isProcessingRef.current = true;
     setConfirmationsQueue((q) => q.slice(1));
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    isProcessingRef.current = false;
   }, []);
 
-  // Auto-dismiss/process items in confirmations queue with auto-confirm
-  const firstItemKey = confirmationsQueue[0]?.recorded_at;
+  // Auto-dismiss/process items in confirmations queue with auto-confirm.
+  // Keying the effect on the head item's recorded_at + expiresAt means the
+  // progress bar restarts cleanly when a new PoC arrives.
+  const firstItemExpiresAt = (confirmationsQueue[0] as any)?.expiresAt;
   useEffect(() => {
     if (confirmationsQueue.length === 0) return;
 
@@ -193,7 +207,6 @@ export default function ActiveTripScreen() {
       return;
     }
 
-    progress.value = remainingMs / 8000;
     progress.value = withTiming(0, { duration: remainingMs });
 
     const timer = setTimeout(() => {
@@ -201,7 +214,7 @@ export default function ActiveTripScreen() {
     }, remainingMs);
 
     return () => clearTimeout(timer);
-  }, [firstItemKey, confirmationsQueue.length, progress, handleConfirmDetection]);
+  }, [firstItemExpiresAt, confirmationsQueue.length, progress, handleConfirmDetection]);
 
   const handlePocDetected = useCallback((poc: PocCandidate) => {
     incrementEvents();
@@ -277,7 +290,9 @@ export default function ActiveTripScreen() {
         playAlertSound(type);
       }
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'Failed to report event');
+      const detail = e?.response?.data?.detail;
+      const msg = typeof detail === 'string' ? detail : (e?.message ?? 'Failed to report event');
+      Alert.alert('Error', msg);
     }
   };
 

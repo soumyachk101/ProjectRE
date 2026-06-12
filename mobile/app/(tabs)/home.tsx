@@ -47,6 +47,10 @@ export default function HomeScreen() {
   const mapRef = useRef<MapView>(null);
   const locSubRef = useRef<Location.LocationSubscription | null>(null);
   const followUserRef = useRef(followUser);
+  // Apple Maps (iOS without Google) never populates details.isGesture, so
+  // we also listen for onPanDrag to detect user-initiated panning and
+  // break the auto-follow.
+  const userPanningRef = useRef(false);
 
   useEffect(() => {
     followUserRef.current = followUser;
@@ -108,6 +112,48 @@ export default function HomeScreen() {
       console.warn('[HomeScreen] Offline sync failed:', e);
     });
 
+    // Mid-trip recovery — if the app was force-killed during a trip, the
+    // trip is still in 'active' state on the server. Surface a prompt so
+    // the user can resume (keeps the same trip + PoCs) or close (ends it
+    // so the server can run classification and free the user up to start
+    // a new trip). Only trips < 24h old are resumable; older stale ones
+    // are auto-closed.
+    (async () => {
+      try {
+        const resp = await api.trips.list();
+        if (!active) return;
+        const now = Date.now();
+        const stale: string[] = [];
+        const resumable = (resp.data ?? []).find((t) => {
+          if (t.status !== 'active') return false;
+          const ageMs = now - new Date(t.created_at as unknown as string).getTime();
+          if (ageMs > 24 * 60 * 60 * 1000) { stale.push(t.id); return false; }
+          return true;
+        });
+        // Auto-close obviously stale trips in the background.
+        stale.forEach((id) => {
+          api.trips.end(id).catch((e) => console.warn('[HomeScreen] auto-close stale trip failed:', e));
+        });
+        if (resumable && !useTripStore.getState().activeTrip) {
+          Alert.alert(
+            'Resume previous trip?',
+            'You have an unfinished trip from earlier. Resume it, or end it now?',
+            [
+              { text: 'End it', style: 'destructive', onPress: () => {
+                  api.trips.end(resumable.id).catch((e) => console.warn('[HomeScreen] end trip failed:', e));
+                } },
+              { text: 'Resume', onPress: () => {
+                  setActiveTrip(resumable);
+                  router.push('/trip/active');
+                } },
+            ],
+          );
+        }
+      } catch (e) {
+        console.warn('[HomeScreen] trip list failed:', e);
+      }
+    })();
+
     (async () => {
       const permitted = await ensureLocationPermission();
       if (!active) return;
@@ -167,9 +213,7 @@ export default function HomeScreen() {
     return () => {
       active = false;
       locSubRef.current?.remove();
-      if (locSub) {
-        locSub.remove();
-      }
+      locSubRef.current = null;
     };
   }, []);
 
@@ -198,13 +242,22 @@ export default function HomeScreen() {
         ref={mapRef}
         style={styles.map}
         mapType="none"
-        region={region}
+        initialRegion={region}
         showsUserLocation
         showsMyLocationButton={false}
+        onPanDrag={() => {
+          userPanningRef.current = true;
+        }}
         onRegionChangeComplete={(newRegion, details) => {
-          setRegion(newRegion);
-          if (details?.isGesture) {
+          // Only commit gesture-driven region changes. Programmatic
+          // animateToRegion calls fire onRegionChangeComplete too, and
+          // writing the new region there was the source of the snapback.
+          // isGesture is Google-Maps-only, so fall back to onPanDrag.
+          const isGesture = details?.isGesture === true || userPanningRef.current;
+          if (isGesture) {
+            setRegion(newRegion);
             setFollowUser(false);
+            userPanningRef.current = false;
           }
         }}
       >
