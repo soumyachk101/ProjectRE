@@ -16,11 +16,14 @@ import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withRepeat, wit
 import { api } from '../../services/api';
 import { SensorEngine, VehicleType, Placement } from '../../services/SensorEngine';
 import { useTripStore } from '../../store/trip';
-import { PocCandidate } from '../../types';
+import { PocCandidate, ConfirmedEvent } from '../../types';
 import { syncManager } from '../../services/sync';
 import { colors, gradients, spacing, typography, radius, shadows } from '../../constants/theme';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { StatCard } from '../../components/ui/StatCard';
+import { EventMarker } from '../../components/map/EventMarker';
+import { TripEventMarker } from '../../components/map/TripEventMarker';
+import XLSX from 'xlsx';
 
 const OSM_TILE_URL = 'https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png';
 
@@ -36,7 +39,29 @@ export default function ActiveTripScreen() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const locSubRef = useRef<Location.LocationSubscription | null>(null);
 
-  const [route, setRoute] = useState<RoutePoint[]>([]);
+  const [telemetry, setTelemetry] = useState<{
+    coords: { latitude: number; longitude: number };
+    speed: number;
+    route: RoutePoint[];
+  }>({
+    coords: { latitude: 0, longitude: 0 },
+    speed: 0,
+    route: [],
+  });
+  const { coords: liveCoords, speed: liveSpeed, route } = telemetry;
+
+  const [detectedEvents, setDetectedEvents] = useState<Array<{
+    id: string;
+    lat: number;
+    lng: number;
+    type: string;
+    time: number;
+  }>>([]);
+
+  const [communityEvents, setCommunityEvents] = useState<ConfirmedEvent[]>([]);
+  const lastFetchedNearbyLocRef = useRef<{ lat: number; lng: number } | null>(null);
+  const lastAnimateTimeRef = useRef<number>(0);
+
   const [starting, setStarting] = useState(false);
   const [ending, setEnding] = useState(false);
   const [mapRegion, setMapRegion] = useState<{ latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number }>({
@@ -45,8 +70,6 @@ export default function ActiveTripScreen() {
 
   // Live telemetry features
   const [engineInstance, setEngineInstance] = useState<SensorEngine | null>(null);
-  const [liveCoords, setLiveCoords] = useState({ latitude: 0, longitude: 0 });
-  const [liveSpeed, setLiveSpeed] = useState(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [recentDetections, setRecentDetections] = useState<{ id: string; type: string; time: string }[]>([]);
   
@@ -55,6 +78,9 @@ export default function ActiveTripScreen() {
   const [followUser, setFollowUser] = useState(true);
   const followUserRef = useRef(followUser);
   const isMountedRef = useRef(true);
+  // Guards the confirm/dismiss handlers against double-tap races (e.g. a
+  // user mashing "Yes, Confirm" while the network request is in flight).
+  const isProcessingRef = useRef(false);
 
   useEffect(() => {
     followUserRef.current = followUser;
@@ -124,30 +150,11 @@ export default function ActiveTripScreen() {
     width: `${progress.value * 100}%`,
   }));
 
-  // Auto-dismiss/process items in confirmations queue
-  const firstItemKey = confirmationsQueue[0]?.recorded_at;
-  useEffect(() => {
-    if (confirmationsQueue.length === 0) return;
+  const handleConfirmDetection = useCallback(async (poc: PocCandidate, asDetected: boolean, isAutoConfirm: boolean = false) => {
+    // Reject re-entry from a fast double-tap on the confirm button.
+    if (isProcessingRef.current) return;
+    isProcessingRef.current = true;
 
-    const firstItem = confirmationsQueue[0] as any;
-    const remainingMs = firstItem.expiresAt - Date.now();
-
-    if (remainingMs <= 0) {
-      setConfirmationsQueue((q) => q.slice(1));
-      return;
-    }
-
-    progress.value = remainingMs / 8000;
-    progress.value = withTiming(0, { duration: remainingMs });
-
-    const timer = setTimeout(() => {
-      setConfirmationsQueue((q) => q.slice(1));
-    }, remainingMs);
-
-    return () => clearTimeout(timer);
-  }, [firstItemKey, confirmationsQueue.length, confirmationsQueue, progress]);
-
-  const handleConfirmDetection = async (poc: PocCandidate, asDetected: boolean) => {
     // Remove from queue immediately
     setConfirmationsQueue((q) => q.slice(1));
 
@@ -160,7 +167,7 @@ export default function ActiveTripScreen() {
         event_type: finalType,
         lat: poc.lat,
         lng: poc.lng,
-        note: 'Auto-detected and user-confirmed',
+        note: isAutoConfirm ? 'Auto-detected and auto-confirmed' : 'Auto-detected and user-confirmed',
       });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -172,13 +179,42 @@ export default function ActiveTripScreen() {
       ]);
     } catch (e) {
       console.warn('Failed to submit user confirmation:', e);
+    } finally {
+      isProcessingRef.current = false;
     }
-  };
+  }, []);
 
-  const handleDismissDetection = () => {
+  const handleDismissDetection = useCallback(() => {
+    if (isProcessingRef.current) return;
+    isProcessingRef.current = true;
     setConfirmationsQueue((q) => q.slice(1));
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
+    isProcessingRef.current = false;
+  }, []);
+
+  // Auto-dismiss/process items in confirmations queue with auto-confirm.
+  // Keying the effect on the head item's recorded_at + expiresAt means the
+  // progress bar restarts cleanly when a new PoC arrives.
+  const firstItemExpiresAt = (confirmationsQueue[0] as any)?.expiresAt;
+  useEffect(() => {
+    if (confirmationsQueue.length === 0) return;
+
+    const firstItem = confirmationsQueue[0] as any;
+    const remainingMs = firstItem.expiresAt - Date.now();
+
+    if (remainingMs <= 0) {
+      handleConfirmDetection(firstItem, true, true);
+      return;
+    }
+
+    progress.value = withTiming(0, { duration: remainingMs });
+
+    const timer = setTimeout(() => {
+      handleConfirmDetection(firstItem, true, true);
+    }, remainingMs);
+
+    return () => clearTimeout(timer);
+  }, [firstItemExpiresAt, confirmationsQueue.length, progress, handleConfirmDetection]);
 
   const handlePocDetected = useCallback((poc: PocCandidate) => {
     incrementEvents();
@@ -200,6 +236,16 @@ export default function ActiveTripScreen() {
     if (soundEnabledRef.current) {
       playAlertSound(eventType);
     }
+
+    // Add to live map markers state
+    const newEvent = {
+      id: Math.random().toString(36).substring(7),
+      lat: poc.lat,
+      lng: poc.lng,
+      type: eventType,
+      time: Date.now(),
+    };
+    setDetectedEvents((prev) => [...prev, newEvent]);
 
     // Queue for interactive user confirmation
     const pocWithExpiry = {
@@ -244,25 +290,69 @@ export default function ActiveTripScreen() {
         playAlertSound(type);
       }
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'Failed to report event');
+      const detail = e?.response?.data?.detail;
+      const msg = typeof detail === 'string' ? detail : (e?.message ?? 'Failed to report event');
+      Alert.alert('Error', msg);
     }
+  };
+
+  const computeTripQuality = (eventsCount: number, distance: number) => {
+    if (distance <= 0) return { score: 100, label: 'Excellent' };
+    const density = eventsCount / distance;
+    let score = 100;
+    let label = 'Excellent';
+
+    if (density === 0) {
+      score = 100;
+      label = 'Excellent';
+    } else if (density <= 0.5) {
+      score = 90;
+      label = 'Good';
+    } else if (density <= 1.5) {
+      score = 75;
+      label = 'Fair';
+    } else if (density <= 3.0) {
+      score = 55;
+      label = 'Poor';
+    } else {
+      score = Math.max(10, Math.round(100 - (density * 15)));
+      label = 'Very Poor';
+    }
+    return { score, label };
   };
 
   const exportToCSV = async () => {
     if (!completedTripDetails) return;
     try {
-      const header = 'Trip ID,Vehicle Type,Placement,Distance (km),Duration,Total Events\n';
-      const meta = `"${completedTripDetails.tripId}","${completedTripDetails.vehicleType}","${completedTripDetails.placement}",${completedTripDetails.distanceKm.toFixed(2)},"${completedTripDetails.durationFormatted}",${completedTripDetails.eventCount}\n\n`;
-      const eventHeader = 'Event Type,Latitude,Longitude,Timestamp,Speed (km/h),Z-Value (g)\n';
-      const rows = completedTripDetails.events.map(poc => {
+      const { score, label } = computeTripQuality(completedTripDetails.eventCount, completedTripDetails.distanceKm);
+      const potholes = completedTripDetails.events.filter(e => e.z_value < 0).length;
+      const speedBreakers = completedTripDetails.events.filter(e => e.z_value >= 0).length;
+      
+      const speeds = completedTripDetails.events.map(e => e.speed_kmh);
+      const avgSpeed = speeds.length > 0 ? (speeds.reduce((a, b) => a + b, 0) / speeds.length) : 0;
+
+      let csvContent = 'ROAD_SENSE AI TRIP REPORT\n\n';
+      csvContent += 'Trip Summary\n';
+      csvContent += `Trip ID,"${completedTripDetails.tripId}"\n`;
+      csvContent += `Vehicle Type,"${completedTripDetails.vehicleType}"\n`;
+      csvContent += `Placement,"${completedTripDetails.placement}"\n`;
+      csvContent += `Distance (km),${completedTripDetails.distanceKm.toFixed(2)}\n`;
+      csvContent += `Duration,"${completedTripDetails.durationFormatted}"\n`;
+      csvContent += `Total Events,${completedTripDetails.eventCount}\n`;
+      csvContent += `Potholes,${potholes}\n`;
+      csvContent += `Speed Breakers,${speedBreakers}\n`;
+      csvContent += `Average Speed (km/h),${avgSpeed.toFixed(1)}\n`;
+      csvContent += `Road Quality Score,${score} (${label})\n\n`;
+
+      csvContent += 'Event Details\n';
+      csvContent += 'Event Type,Latitude,Longitude,Timestamp,Speed (km/h),Z-Value (g)\n';
+      completedTripDetails.events.forEach(poc => {
         const type = poc.z_value < 0 ? 'Pothole' : 'Speed Breaker';
         const time = new Date(poc.recorded_at).toLocaleTimeString();
-        return `"${type}",${poc.lat.toFixed(6)},${poc.lng.toFixed(6)},"${time}",${poc.speed_kmh.toFixed(1)},${poc.z_value.toFixed(3)}`;
-      }).join('\n');
+        csvContent += `"${type}",${poc.lat.toFixed(6)},${poc.lng.toFixed(6)},"${time}",${poc.speed_kmh.toFixed(1)},${poc.z_value.toFixed(3)}\n`;
+      });
 
-      const csvContent = header + meta + eventHeader + rows;
       const fileUri = `${cacheDirectory}trip_report_${completedTripDetails.tripId}.csv`;
-      
       await writeAsStringAsync(fileUri, csvContent, { encoding: EncodingType.UTF8 });
       await Sharing.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Share Trip CSV Report' });
     } catch (e: any) {
@@ -273,20 +363,83 @@ export default function ActiveTripScreen() {
   const exportToExcel = async () => {
     if (!completedTripDetails) return;
     try {
-      const header = 'Trip ID\tVehicle Type\tPlacement\tDistance (km)\tDuration\tTotal Events\n';
-      const meta = `${completedTripDetails.tripId}\t${completedTripDetails.vehicleType}\t${completedTripDetails.placement}\t${completedTripDetails.distanceKm.toFixed(2)}\t${completedTripDetails.durationFormatted}\t${completedTripDetails.eventCount}\n\n`;
-      const eventHeader = 'Event Type\tLatitude\tLongitude\tTimestamp\tSpeed (km/h)\tZ-Value (g)\n';
-      const rows = completedTripDetails.events.map(poc => {
+      const { score, label } = computeTripQuality(completedTripDetails.eventCount, completedTripDetails.distanceKm);
+      const potholes = completedTripDetails.events.filter(e => e.z_value < 0).length;
+      const speedBreakers = completedTripDetails.events.filter(e => e.z_value >= 0).length;
+      
+      const speeds = completedTripDetails.events.map(e => e.speed_kmh);
+      const avgSpeed = speeds.length > 0 ? (speeds.reduce((a, b) => a + b, 0) / speeds.length) : 0;
+
+      const severityBreakdown = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 };
+      completedTripDetails.events.forEach(poc => {
+        const absZ = Math.abs(poc.z_value);
+        if (absZ > 1.5) severityBreakdown.CRITICAL++;
+        else if (absZ > 1.0) severityBreakdown.HIGH++;
+        else if (absZ > 0.5) severityBreakdown.MEDIUM++;
+        else severityBreakdown.LOW++;
+      });
+
+      // 1. Create a new workbook
+      const wb = XLSX.utils.book_new();
+
+      // 2. Sheet 1: Summary
+      const summaryData = [
+        ['ROAD_SENSE AI - TRIP SUMMARY'],
+        [],
+        ['Trip ID', completedTripDetails.tripId],
+        ['Vehicle Type', completedTripDetails.vehicleType],
+        ['Placement', completedTripDetails.placement],
+        ['Distance (km)', parseFloat(completedTripDetails.distanceKm.toFixed(2))],
+        ['Duration', completedTripDetails.durationFormatted],
+        ['Total Events', completedTripDetails.eventCount],
+        ['Potholes', potholes],
+        ['Speed Breakers', speedBreakers],
+        ['Average Speed (km/h)', parseFloat(avgSpeed.toFixed(1))],
+        ['Road Quality Score', `${score} (${label})`],
+      ];
+      const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(wb, wsSummary, 'Trip Summary');
+
+      // 3. Sheet 2: Event Details
+      const eventHeaders = [['Event Type', 'Latitude', 'Longitude', 'Timestamp', 'Speed (km/h)', 'Z-Value (g)']];
+      const eventRows = completedTripDetails.events.map(poc => {
         const type = poc.z_value < 0 ? 'Pothole' : 'Speed Breaker';
         const time = new Date(poc.recorded_at).toLocaleTimeString();
-        return `${type}\t${poc.lat.toFixed(6)}\t${poc.lng.toFixed(6)}\t${time}\t${poc.speed_kmh.toFixed(1)}\t${poc.z_value.toFixed(3)}`;
-      }).join('\n');
+        return [
+          type,
+          poc.lat,
+          poc.lng,
+          time,
+          parseFloat(poc.speed_kmh.toFixed(1)),
+          parseFloat(poc.z_value.toFixed(3))
+        ];
+      });
+      const wsEvents = XLSX.utils.aoa_to_sheet([...eventHeaders, ...eventRows]);
+      XLSX.utils.book_append_sheet(wb, wsEvents, 'Event Details');
 
-      const excelContent = header + meta + eventHeader + rows;
-      const fileUri = `${cacheDirectory}trip_report_${completedTripDetails.tripId}.xls`;
+      // 4. Sheet 3: Statistics
+      const statsData = [
+        ['ROAD ANOMALIES STATISTICS'],
+        [],
+        ['Metric', 'Value'],
+        ['Total Potholes', potholes],
+        ['Total Speed Breakers', speedBreakers],
+        [],
+        ['Severity Breakdown (Estimated)', 'Count'],
+        ['Critical (>1.5g)', severityBreakdown.CRITICAL],
+        ['High (1.0g - 1.5g)', severityBreakdown.HIGH],
+        ['Medium (0.5g - 1.0g)', severityBreakdown.MEDIUM],
+        ['Low (<0.5g)', severityBreakdown.LOW],
+      ];
+      const wsStats = XLSX.utils.aoa_to_sheet(statsData);
+      XLSX.utils.book_append_sheet(wb, wsStats, 'Statistics');
+
+      // Write to base64
+      const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+      const fileUri = `${cacheDirectory}trip_report_${completedTripDetails.tripId}.xlsx`;
       
-      await writeAsStringAsync(fileUri, excelContent, { encoding: EncodingType.UTF8 });
-      await Sharing.shareAsync(fileUri, { mimeType: 'application/vnd.ms-excel', dialogTitle: 'Share Trip Excel Report' });
+      await writeAsStringAsync(fileUri, wbout, { encoding: EncodingType.Base64 });
+      await Sharing.shareAsync(fileUri, { mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', dialogTitle: 'Share Trip Excel Report' });
     } catch (e: any) {
       Alert.alert('Export Error', e.message || 'Failed to export Excel');
     }
@@ -295,23 +448,54 @@ export default function ActiveTripScreen() {
   const exportToPDF = async () => {
     if (!completedTripDetails) return;
     try {
+      const { score, label } = computeTripQuality(completedTripDetails.eventCount, completedTripDetails.distanceKm);
+      const potholes = completedTripDetails.events.filter(e => e.z_value < 0).length;
+      const speedBreakers = completedTripDetails.events.filter(e => e.z_value >= 0).length;
+      
+      const speeds = completedTripDetails.events.map(e => e.speed_kmh);
+      const avgSpeed = speeds.length > 0 ? (speeds.reduce((a, b) => a + b, 0) / speeds.length) : 0;
+
+      const severityBreakdown = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 };
+      completedTripDetails.events.forEach(poc => {
+        const absZ = Math.abs(poc.z_value);
+        if (absZ > 1.5) severityBreakdown.CRITICAL++;
+        else if (absZ > 1.0) severityBreakdown.HIGH++;
+        else if (absZ > 0.5) severityBreakdown.MEDIUM++;
+        else severityBreakdown.LOW++;
+      });
+
+      const totalEvents = completedTripDetails.eventCount;
+      const potholesPercent = totalEvents > 0 ? (potholes / totalEvents * 100) : 0;
+      const speedBreakersPercent = totalEvents > 0 ? (speedBreakers / totalEvents * 100) : 0;
+
       const htmlContent = `
         <html>
         <head>
           <style>
             body {
               font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-              background-color: #f4f1ea;
+              background-color: #faf9f6;
               color: #1c1b18;
               padding: 40px;
+              margin: 0;
+            }
+            .header {
+              border-bottom: 3px solid #1c1b18;
+              padding-bottom: 20px;
+              margin-bottom: 30px;
+            }
+            .logo {
+              font-size: 14px;
+              font-weight: 800;
+              letter-spacing: 2px;
+              text-transform: uppercase;
+              color: #f97316;
             }
             h1 {
-              font-size: 28px;
+              font-size: 32px;
               color: #1c1b18;
-              border-bottom: 2px solid #1c1b18;
-              padding-bottom: 12px;
-              margin-bottom: 24px;
-              font-weight: bold;
+              margin: 5px 0 0 0;
+              font-weight: 800;
               text-transform: uppercase;
               letter-spacing: 0.5px;
             }
@@ -319,15 +503,16 @@ export default function ActiveTripScreen() {
               display: flex;
               flex-wrap: wrap;
               margin-bottom: 30px;
-              gap: 20px;
+              gap: 15px;
             }
             .meta-card {
               background: #ffffff;
               padding: 16px;
-              border-radius: 8px;
+              border-radius: 12px;
               border: 1px solid #e3ddd0;
               flex: 1;
-              min-width: 140px;
+              min-width: 150px;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.02);
             }
             .meta-label {
               font-size: 10px;
@@ -338,31 +523,72 @@ export default function ActiveTripScreen() {
             }
             .meta-val {
               font-size: 20px;
-              font-weight: bold;
+              font-weight: 800;
               color: #1c1b18;
               margin-top: 6px;
             }
-            h2 {
-              font-size: 18px;
+            .narrative-card {
+              background: #f1ede4;
+              border-left: 5px solid #2f4858;
+              padding: 20px;
+              border-radius: 0 12px 12px 0;
+              margin-bottom: 30px;
+              font-size: 14px;
+              line-height: 1.6;
               color: #2f4858;
-              margin-top: 30px;
-              margin-bottom: 15px;
+            }
+            .two-col {
+              display: flex;
+              gap: 30px;
+              margin-bottom: 30px;
+            }
+            .col {
+              flex: 1;
+            }
+            .section-title {
+              font-size: 18px;
+              font-weight: 700;
+              color: #1c1b18;
               text-transform: uppercase;
+              margin-bottom: 15px;
               letter-spacing: 0.5px;
+              border-bottom: 1.5px solid #e3ddd0;
+              padding-bottom: 6px;
+            }
+            .stat-bar-container {
+              margin-bottom: 12px;
+            }
+            .stat-bar-label {
+              display: flex;
+              justify-content: space-between;
+              font-size: 12px;
+              font-weight: 600;
+              margin-bottom: 4px;
+            }
+            .stat-bar-bg {
+              background: #e3ddd0;
+              height: 10px;
+              border-radius: 5px;
+              overflow: hidden;
+            }
+            .stat-bar-fill {
+              height: 100%;
+              border-radius: 5px;
             }
             table {
               width: 100%;
               border-collapse: collapse;
               margin-top: 10px;
               background: #ffffff;
-              border-radius: 8px;
+              border-radius: 12px;
               overflow: hidden;
               border: 1px solid #e3ddd0;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.02);
             }
             th {
               background: #1c1b18;
               color: #ffffff;
-              padding: 12px 16px;
+              padding: 14px 16px;
               text-align: left;
               font-size: 11px;
               text-transform: uppercase;
@@ -378,42 +604,122 @@ export default function ActiveTripScreen() {
               border-bottom: none;
             }
             .pothole-badge {
-              color: #a8392c;
-              font-weight: bold;
+              color: #ef4444;
+              font-weight: 800;
             }
             .breaker-badge {
-              color: #b6803d;
-              font-weight: bold;
+              color: #f59e0b;
+              font-weight: 800;
             }
+            .quality-Excellent { color: #10b981; }
+            .quality-Good { color: #34d399; }
+            .quality-Fair { color: #f59e0b; }
+            .quality-Poor { color: #f97316; }
+            .quality-Very-Poor { color: #ef4444; }
           </style>
         </head>
         <body>
-          <h1>RoadSense AI — Trip Report</h1>
+          <div class="header">
+            <div class="logo">RoadSense AI Telemetry</div>
+            <h1>Trip Report</h1>
+          </div>
+
           <div class="meta-grid">
             <div class="meta-card">
               <div class="meta-label">Trip ID</div>
-              <div class="meta-val" style="font-size: 9px; word-break: break-all; margin-top: 8px;">${completedTripDetails.tripId}</div>
+              <div class="meta-val" style="font-size: 10px; word-break: break-all; margin-top: 8px;">${completedTripDetails.tripId}</div>
             </div>
             <div class="meta-card">
-              <div class="meta-label">Vehicle & Placement</div>
-              <div class="meta-val" style="font-size: 14px; margin-top: 8px;">${completedTripDetails.vehicleType.toUpperCase()} (${completedTripDetails.placement.toUpperCase()})</div>
+              <div class="meta-label">Vehicle & Mount</div>
+              <div class="meta-val" style="font-size: 14px; margin-top: 8px;">${completedTripDetails.vehicleType.replace('_', ' ').toUpperCase()} (${completedTripDetails.placement.toUpperCase()})</div>
             </div>
             <div class="meta-card">
               <div class="meta-label">Distance Covered</div>
               <div class="meta-val">${completedTripDetails.distanceKm.toFixed(2)} km</div>
             </div>
             <div class="meta-card">
-              <div class="meta-label">Ride Duration</div>
+              <div class="meta-label">Duration</div>
               <div class="meta-val">${completedTripDetails.durationFormatted}</div>
             </div>
             <div class="meta-card">
-              <div class="meta-label">Anomalies Detected</div>
-              <div class="meta-val">${completedTripDetails.eventCount}</div>
+              <div class="meta-label">Quality Score</div>
+              <div class="meta-val quality-${label.replace(' ', '-')}">${score} <span style="font-size: 12px; font-weight: normal;">(${label})</span></div>
             </div>
           </div>
-          <h2>Mapped Road Events</h2>
+
+          <div class="narrative-card">
+            This trip was completed using a <strong>${completedTripDetails.vehicleType.replace('_', ' ')}</strong> with the device placed in <strong>${completedTripDetails.placement}</strong> configuration. 
+            A total of <strong>${completedTripDetails.eventCount}</strong> road anomalies were detected over a distance of <strong>${completedTripDetails.distanceKm.toFixed(2)} km</strong>, resulting in a road quality rating of <strong>${label}</strong> (${score}/100). 
+            The vehicle traveled at an average detection speed of <strong>${avgSpeed.toFixed(1)} km/h</strong>.
+          </div>
+
+          <div class="two-col">
+            <div class="col">
+              <div class="section-title">Anomaly Distribution</div>
+              <div class="stat-bar-container">
+                <div class="stat-bar-label">
+                  <span>Potholes</span>
+                  <span>${potholes} (${potholesPercent.toFixed(0)}%)</span>
+                </div>
+                <div class="stat-bar-bg">
+                  <div class="stat-bar-fill" style="width: ${potholesPercent}%; background-color: #ef4444;"></div>
+                </div>
+              </div>
+              <div class="stat-bar-container">
+                <div class="stat-bar-label">
+                  <span>Speed Breakers</span>
+                  <span>${speedBreakers} (${speedBreakersPercent.toFixed(0)}%)</span>
+                </div>
+                <div class="stat-bar-bg">
+                  <div class="stat-bar-fill" style="width: ${speedBreakersPercent}%; background-color: #f59e0b;"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col">
+              <div class="section-title">Estimated Severity</div>
+              <div class="stat-bar-container">
+                <div class="stat-bar-label">
+                  <span>Critical (>1.5g)</span>
+                  <span>${severityBreakdown.CRITICAL}</span>
+                </div>
+                <div class="stat-bar-bg">
+                  <div class="stat-bar-fill" style="width: ${totalEvents > 0 ? (severityBreakdown.CRITICAL / totalEvents * 100) : 0}%; background-color: #7f1d1d;"></div>
+                </div>
+              </div>
+              <div class="stat-bar-container">
+                <div class="stat-bar-label">
+                  <span>High (1.0g - 1.5g)</span>
+                  <span>${severityBreakdown.HIGH}</span>
+                </div>
+                <div class="stat-bar-bg">
+                  <div class="stat-bar-fill" style="width: ${totalEvents > 0 ? (severityBreakdown.HIGH / totalEvents * 100) : 0}%; background-color: #ef4444;"></div>
+                </div>
+              </div>
+              <div class="stat-bar-container">
+                <div class="stat-bar-label">
+                  <span>Medium (0.5g - 1.0g)</span>
+                  <span>${severityBreakdown.MEDIUM}</span>
+                </div>
+                <div class="stat-bar-bg">
+                  <div class="stat-bar-fill" style="width: ${totalEvents > 0 ? (severityBreakdown.MEDIUM / totalEvents * 100) : 0}%; background-color: #f59e0b;"></div>
+                </div>
+              </div>
+              <div class="stat-bar-container">
+                <div class="stat-bar-label">
+                  <span>Low (<0.5g)</span>
+                  <span>${severityBreakdown.LOW}</span>
+                </div>
+                <div class="stat-bar-bg">
+                  <div class="stat-bar-fill" style="width: ${totalEvents > 0 ? (severityBreakdown.LOW / totalEvents * 100) : 0}%; background-color: #3b82f6;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-title">Detailed Road Anomaly Log</div>
           ${completedTripDetails.events.length === 0 ? `
-            <div style="background: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #e3ddd0; text-align: center; color: #8a857a;">
+            <div style="background: #ffffff; padding: 30px; border-radius: 12px; border: 1px solid #e3ddd0; text-align: center; color: #8a857a; font-size: 14px;">
               Clean road detected! No potholes or speed breakers were recorded during this trip.
             </div>
           ` : `
@@ -435,10 +741,10 @@ export default function ActiveTripScreen() {
                   return `
                     <tr>
                       <td><span class="${badgeClass}">${type}</span></td>
-                      <td>${poc.lat.toFixed(5)}, ${poc.lng.toFixed(5)}</td>
+                      <td>${poc.lat.toFixed(6)}, ${poc.lng.toFixed(6)}</td>
                       <td>${time}</td>
                       <td>${poc.speed_kmh.toFixed(1)} km/h</td>
-                      <td style="font-family: monospace;">${poc.z_value.toFixed(3)}</td>
+                      <td style="font-family: monospace; font-weight: bold;">${poc.z_value.toFixed(3)}</td>
                     </tr>
                   `;
                 }).join('')}
@@ -455,6 +761,16 @@ export default function ActiveTripScreen() {
       Alert.alert('Export Error', e.message || 'Failed to export PDF');
     }
   };
+
+  const fetchNearbyEvents = useCallback(async (lat: number, lng: number) => {
+    try {
+      const response = await api.events.nearby(lat, lng, 5000);
+      setCommunityEvents(response.data || []);
+      lastFetchedNearbyLocRef.current = { lat, lng };
+    } catch (e) {
+      console.warn('Failed to fetch nearby community events:', e);
+    }
+  }, []);
 
   const startTrip = async () => {
     setStarting(true);
@@ -509,22 +825,28 @@ export default function ActiveTripScreen() {
       const trip = tripResponse.data;
 
       // Set UI state immediately
-      setLiveCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+      const initCoords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+      const initSpeed = Math.max(0, (loc.coords.speed ?? 0) * 3.6);
+      const initRoute = !isFallback ? [initCoords] : [];
+
+      setTelemetry({
+        coords: initCoords,
+        speed: initSpeed,
+        route: initRoute,
+      });
+
       setMapRegion({
         latitude: loc.coords.latitude,
         longitude: loc.coords.longitude,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       });
-      const speedMs = loc.coords.speed ?? 0;
-      setLiveSpeed(Math.max(0, speedMs * 3.6));
       setActiveTrip(trip);
 
       if (!isFallback) {
-        setRoute([{ latitude: loc.coords.latitude, longitude: loc.coords.longitude }]);
         lastCoordRef.current = { lat: loc.coords.latitude, lng: loc.coords.longitude };
+        fetchNearbyEvents(loc.coords.latitude, loc.coords.longitude).catch(console.error);
       } else {
-        setRoute([]);
         lastCoordRef.current = null;
       }
 
@@ -554,25 +876,49 @@ export default function ActiveTripScreen() {
             (loc) => {
               if (!isMountedRef.current) return;
               const point = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
-              setLiveCoords(point);
               const speedMs = loc.coords.speed ?? 0;
-              setLiveSpeed(Math.max(0, speedMs * 3.6));
+              const speed = Math.max(0, speedMs * 3.6);
 
-              // Track distance and route polyline
-              if (lastCoordRef.current) {
-                const d = haversineKm(lastCoordRef.current.lat, lastCoordRef.current.lng, point.latitude, point.longitude);
-                if (d > 0.005) {
-                  incrementDistance(d); // ignore GPS noise < 5m
-                  setRoute((r) => [...r, point]);
+              // Fetch nearby community events dynamically as we move (every 1km)
+              if (lastFetchedNearbyLocRef.current) {
+                const distSinceLastFetch = haversineKm(
+                  lastFetchedNearbyLocRef.current.lat,
+                  lastFetchedNearbyLocRef.current.lng,
+                  point.latitude,
+                  point.longitude
+                );
+                if (distSinceLastFetch > 1.0) {
+                  fetchNearbyEvents(point.latitude, point.longitude).catch(console.error);
                 }
               } else {
-                // First real coordinate
-                setRoute([point]);
+                fetchNearbyEvents(point.latitude, point.longitude).catch(console.error);
               }
-              lastCoordRef.current = { lat: point.latitude, lng: point.longitude };
 
-              if (followUserRef.current) {
+              setTelemetry((prev) => {
+                let newRoute = prev.route;
+                if (lastCoordRef.current) {
+                  const d = haversineKm(lastCoordRef.current.lat, lastCoordRef.current.lng, point.latitude, point.longitude);
+                  if (d > 0.005) {
+                    incrementDistance(d); // ignore GPS noise < 5m
+                    newRoute = [...prev.route, point];
+                    lastCoordRef.current = { lat: point.latitude, lng: point.longitude };
+                  }
+                } else {
+                  newRoute = [point];
+                  lastCoordRef.current = { lat: point.latitude, lng: point.longitude };
+                }
+
+                return {
+                  coords: point,
+                  speed: speed,
+                  route: newRoute,
+                };
+              });
+
+              const now = Date.now();
+              if (followUserRef.current && now - lastAnimateTimeRef.current >= 2000) {
                 mapRef.current?.animateToRegion({ ...point, latitudeDelta: 0.01, longitudeDelta: 0.01 });
+                lastAnimateTimeRef.current = now;
               }
             }
           ).catch((err) => {
@@ -833,6 +1179,28 @@ export default function ActiveTripScreen() {
             lineDashPattern={[0]}
           />
         )}
+
+        {/* Community reported events */}
+        {communityEvents.map((evt) => (
+          <EventMarker
+            key={`community-${evt.id}`}
+            event={evt}
+            onPress={() => {}}
+          />
+        ))}
+
+        {/* Live detected events during this trip */}
+        {detectedEvents.map((evt) => {
+          const isLive = Date.now() - evt.time < 5000;
+          return (
+            <TripEventMarker
+              key={`detected-${evt.id}`}
+              coordinate={{ latitude: evt.lat, longitude: evt.lng }}
+              eventType={evt.type}
+              isLive={isLive}
+            />
+          );
+        })}
       </MapView>
 
       {/* Glassmorphism stats panel */}

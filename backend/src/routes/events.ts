@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../db';
 import { requireAuth, AuthRequest } from '../middleware/requireAuth';
+import { reportRateLimiter } from '../index';
 
 export const eventsRouter = Router();
 
@@ -51,7 +52,7 @@ eventsRouter.get('/bbox', async (req, res) => {
 });
 
 // POST /api/v1/events/report — manual event report (requires auth)
-eventsRouter.post('/report', requireAuth, async (req: AuthRequest, res) => {
+eventsRouter.post('/report', requireAuth, reportRateLimiter, async (req: AuthRequest, res) => {
   const { event_type, lat, lng } = req.body;
   if (!event_type || lat == null || lng == null) {
     res.status(422).json({ detail: 'event_type, lat, lng required' });
@@ -61,9 +62,37 @@ eventsRouter.post('/report', requireAuth, async (req: AuthRequest, res) => {
     res.status(422).json({ detail: 'Invalid lat/lng values' });
     return;
   }
-  const validTypes = ['pothole', 'speed_breaker', 'road_crack', 'water_logging', 'accident', 'construction'];
+  const validTypes = ['pothole', 'speed_breaker', 'broken_patch', 'road_crack', 'water_logging', 'accident', 'construction'];
   if (!validTypes.includes(event_type)) {
     res.status(422).json({ detail: `event_type must be one of: ${validTypes.join(', ')}` });
+    return;
+  }
+
+  // De-dup: if a user reports the same event_type within 20m and the
+  // existing row is less than 60s old, bump the trailCount and lastSeen
+  // instead of creating a new confirmed_event row. This stops a single
+  // impatient user from spamming the leaderboard with one pothole.
+  const DEG_DELTA = 20 / 111320;
+  const recent = await prisma.confirmedEvent.findFirst({
+    where: {
+      eventType: event_type,
+      isActive: true,
+      lat: { gte: lat - DEG_DELTA, lte: lat + DEG_DELTA },
+      lng: { gte: lng - DEG_DELTA, lte: lng + DEG_DELTA },
+      lastSeen: { gte: new Date(Date.now() - 60_000) },
+    },
+    orderBy: { lastSeen: 'desc' },
+  });
+
+  if (recent) {
+    const updated = await prisma.confirmedEvent.update({
+      where: { id: recent.id },
+      data: {
+        trailCount: { increment: 1 },
+        lastSeen: new Date(),
+      },
+    });
+    res.status(200).json({ id: updated.id, message: 'Report merged with existing event' });
     return;
   }
 

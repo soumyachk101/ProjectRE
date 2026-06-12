@@ -8,29 +8,18 @@ import { useAuthStore } from '../store/auth';
 import { colors } from '../constants/theme';
 import { AlertOverlay } from '../components/alert/AlertOverlay';
 import { ErrorBoundary } from '../components/ui/ErrorBoundary';
-import { syncManager } from '../services/sync';
 
 const queryClient = new QueryClient();
 
 export default function RootLayout() {
   const loadFromStorage = useAuthStore((s) => s.loadFromStorage);
-  const isHydrated = useAuthStore((s) => s.isHydrated);
 
+  // Kick off SecureStore rehydration as early as possible so the index
+  // screen can render the right destination. The offline sync itself is
+  // now triggered from app/index.tsx once the user is past the splash.
   useEffect(() => {
     loadFromStorage();
-  }, []);
-
-  useEffect(() => {
-    if (isHydrated) {
-      syncManager.syncOfflineData().catch((e) => {
-        console.warn('[RootLayout] Offline sync failed:', e);
-      });
-    }
-  }, [isHydrated]);
-
-  if (!isHydrated) {
-    return null;
-  }
+  }, [loadFromStorage]);
 
   return (
     <ErrorBoundary>

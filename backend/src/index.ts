@@ -24,6 +24,32 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '1mb' }));
 
+// Lightweight in-memory rate limiter for /events/report. No new dependency
+// — a Map<key, { count, resetAt }> is enough for the MVP. The middleware
+// keys on userId (from JWT) + ip so a single user can't flood the endpoint
+// across multiple sessions.
+const reportRateLimit = new Map<string, { count: number; resetAt: number }>();
+const REPORT_LIMIT = 10;
+const REPORT_WINDOW_MS = 60_000;
+
+function reportRateLimiter(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const userId = (req as any).userId ?? 'anon';
+  const key = `${userId}:${req.ip}`;
+  const now = Date.now();
+  const entry = reportRateLimit.get(key);
+  if (!entry || entry.resetAt < now) {
+    reportRateLimit.set(key, { count: 1, resetAt: now + REPORT_WINDOW_MS });
+    next();
+    return;
+  }
+  if (entry.count >= REPORT_LIMIT) {
+    res.status(429).json({ detail: 'Too many reports. Please wait a minute and try again.' });
+    return;
+  }
+  entry.count++;
+  next();
+}
+
 // Routes
 app.use('/', healthRouter);
 app.use('/api/v1/auth', authRouter);
@@ -31,6 +57,8 @@ app.use('/api/v1/trips', tripsRouter);
 app.use('/api/v1/events', eventsRouter);
 app.use('/api/v1/users', usersRouter);
 app.use('/api/v1/leaderboard', leaderboardRouter);
+
+export { reportRateLimiter };
 
 // 404
 app.use((_req, res) => { res.status(404).json({ detail: 'Not found' }); });

@@ -60,6 +60,20 @@ function computeThreshold(T0: number, speedHistory: number[], eventType: 'speed_
   return T0;
 }
 
+function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000; // Radius of Earth in meters
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 export type VehicleType = 'two_wheeler' | 'three_wheeler' | 'four_wheeler';
 export type Placement = 'mounter' | 'pocket' | 'dashboard';
 
@@ -93,9 +107,13 @@ export class SensorEngine {
   private accelSub: ReturnType<typeof Accelerometer.addListener> | null = null;
   private locationSub: Location.LocationSubscription | null = null;
   private flushInterval: ReturnType<typeof setInterval> | null = null;
+  private running: boolean = false;
 
   private sampleCount = 0;
   private prevZ: number | null = null;
+
+  private lastPocLat: number | null = null;
+  private lastPocLng: number | null = null;
 
   private sensorListeners: ((data: { x: number; y: number; z: number }) => void)[] = [];
   private lastRecordedPocIndex: number | null = null;
@@ -117,6 +135,17 @@ export class SensorEngine {
   }
 
   async start(): Promise<void> {
+    // Idempotent — safe against Fast Refresh and Start-Trip double-taps.
+    if (this.running) return;
+    this.running = true;
+
+    // Tear down any stray handles left behind by a prior lifecycle.
+    this.accelSub?.remove();
+    this.accelSub = null;
+    this.locationSub?.remove();
+    this.locationSub = null;
+    if (this.flushInterval) { clearInterval(this.flushInterval); this.flushInterval = null; }
+
     try {
       const isAccelAvailable = await Accelerometer.isAvailableAsync();
       if (isAccelAvailable) {
@@ -151,9 +180,12 @@ export class SensorEngine {
   }
 
   stop(): void {
+    this.running = false;
     this.accelSub?.remove();
+    this.accelSub = null;
     this.locationSub?.remove();
-    if (this.flushInterval) clearInterval(this.flushInterval);
+    this.locationSub = null;
+    if (this.flushInterval) { clearInterval(this.flushInterval); this.flushInterval = null; }
     this.flush();
   }
 
@@ -203,21 +235,47 @@ export class SensorEngine {
     }
 
     if (isSb || isPh) {
-      const poc: PocCandidate = {
-        trip_id: this.tripId,
-        lat: this.currentLat,
-        lng: this.currentLng,
-        z_value: z_filtered,
-        z_next: null,
-        z_prev: this.prevZ,
-        tp: Date.now() / 1000,
-        speed_kmh: this.currentSpeed,
-        threshold_used: isSb ? sbThreshold : phThreshold,
-        recorded_at: new Date().toISOString(),
-      };
-      this.pocBuffer.push(poc);
-      this.lastRecordedPocIndex = this.pocBuffer.length - 1;
-      this.onPocDetected(poc);
+      let isWithinCooldown = false;
+      if (this.lastPocLat !== null && this.lastPocLng !== null) {
+        const dist = haversineM(this.lastPocLat, this.lastPocLng, this.currentLat, this.currentLng);
+        if (dist < 10) {
+          isWithinCooldown = true;
+        }
+      }
+
+      if (isWithinCooldown) {
+        if (this.pocBuffer.length > 0) {
+          const lastPoc = this.pocBuffer[this.pocBuffer.length - 1];
+          if (lastPoc.trip_id === this.tripId && Math.abs(z_filtered) > Math.abs(lastPoc.z_value)) {
+            lastPoc.z_value = z_filtered;
+            lastPoc.lat = this.currentLat;
+            lastPoc.lng = this.currentLng;
+            lastPoc.speed_kmh = this.currentSpeed;
+            lastPoc.recorded_at = new Date().toISOString();
+            lastPoc.tp = Date.now() / 1000;
+            lastPoc.threshold_used = isSb ? sbThreshold : phThreshold;
+            this.lastRecordedPocIndex = this.pocBuffer.length - 1;
+          }
+        }
+      } else {
+        const poc: PocCandidate = {
+          trip_id: this.tripId,
+          lat: this.currentLat,
+          lng: this.currentLng,
+          z_value: z_filtered,
+          z_next: null,
+          z_prev: this.prevZ,
+          tp: Date.now() / 1000,
+          speed_kmh: this.currentSpeed,
+          threshold_used: isSb ? sbThreshold : phThreshold,
+          recorded_at: new Date().toISOString(),
+        };
+        this.pocBuffer.push(poc);
+        this.lastRecordedPocIndex = this.pocBuffer.length - 1;
+        this.lastPocLat = this.currentLat;
+        this.lastPocLng = this.currentLng;
+        this.onPocDetected(poc);
+      }
     }
 
     this.prevZ = z_filtered;

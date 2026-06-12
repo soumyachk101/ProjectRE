@@ -48,12 +48,18 @@ tripsRouter.get('/', async (req: AuthRequest, res) => {
     where: { userId: req.userId! },
     orderBy: { createdAt: 'desc' },
     take: 50,
+    include: {
+      _count: { select: { roadEvents: true } },
+    },
   });
   res.json(trips.map(tripView));
 });
 
 tripsRouter.get('/:id', async (req: AuthRequest, res) => {
-  const trip = await prisma.trip.findFirst({ where: { id: req.params.id, userId: req.userId! } });
+  const trip = await prisma.trip.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+    include: { _count: { select: { roadEvents: true } } },
+  });
   if (!trip) { res.status(404).json({ detail: 'Trip not found' }); return; }
   res.json(tripView(trip));
 });
@@ -108,5 +114,7 @@ function tripView(t: any) {
     started_at: t.startedAt,
     ended_at: t.endedAt,
     created_at: t.createdAt,
+    distance_km: t.distanceKm ?? null,
+    event_count: t._count?.roadEvents ?? 0,
   };
 }

@@ -73,8 +73,10 @@ export default function ReportScreen() {
       setSubmitted(true);
       setPinLocation(null);
       setSelectedType(null);
-    } catch {
-      Alert.alert('Error', 'Failed to submit report');
+    } catch (e: any) {
+      const detail = e?.response?.data?.detail;
+      const msg = typeof detail === 'string' ? detail : 'Failed to submit report';
+      Alert.alert('Error', msg);
     } finally {
       setSubmitting(false);
     }

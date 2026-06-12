@@ -56,7 +56,10 @@ async function classifyWithML(pocs: any[]) {
 }
 
 async function classifyTrip(tripId: string) {
-  const pocs = await prisma.pocCandidate.findMany({ where: { tripId } });
+  const pocs = await prisma.pocCandidate.findMany({
+    where: { tripId },
+    orderBy: { recordedAt: 'asc' },
+  });
   if (!pocs.length) {
     await prisma.trip.update({ where: { id: tripId }, data: { status: 'completed' } });
     return;
@@ -65,7 +68,7 @@ async function classifyTrip(tripId: string) {
   // Try ML classification first, fall back to rule-based
   const mlResults = await classifyWithML(pocs);
 
-  const validEventTypes = ['pothole', 'speed_breaker', 'road_crack', 'water_logging', 'accident', 'construction'];
+  const validEventTypes = ['pothole', 'speed_breaker', 'broken_patch', 'road_crack', 'water_logging', 'accident', 'construction'];
 
   await prisma.$transaction([
     ...pocs.map((poc, i) => {
@@ -95,6 +98,28 @@ async function classifyTrip(tripId: string) {
         },
       });
     }),
-    prisma.trip.update({ where: { id: tripId }, data: { status: 'completed' } }),
+    prisma.trip.update({
+      where: { id: tripId },
+      data: { status: 'completed', distanceKm: computeDistanceKm(pocs) },
+    }),
   ]);
+}
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function computeDistanceKm(pocs: { lat: number; lng: number }[]): number {
+  if (pocs.length < 2) return 0;
+  let km = 0;
+  for (let i = 1; i < pocs.length; i++) {
+    km += haversineKm(pocs[i - 1].lat, pocs[i - 1].lng, pocs[i].lat, pocs[i].lng);
+  }
+  return Math.round(km * 100) / 100;
 }

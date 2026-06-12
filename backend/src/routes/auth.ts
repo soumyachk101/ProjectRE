@@ -73,11 +73,22 @@ authRouter.post('/login', async (req, res) => {
       res.status(401).json({ detail: 'Invalid OTP' });
       return;
     }
-    const user = await prisma.user.upsert({
+    // SECURITY: do NOT auto-create a user on login. Unknown phones must sign up first.
+    // Previously this route used prisma.user.upsert with create: { phone }, which
+    // combined with OTP_MOCK_MODE=true and the hard-coded mock code let any caller
+    // claim a JWT for any phone in a single request.
+    const user = await prisma.user.findUnique({
       where: { phone },
-      update: {},
-      create: { phone },
+      select: { id: true, isActive: true },
     });
+    if (!user) {
+      res.status(404).json({ detail: 'User not registered. Please sign up first.' });
+      return;
+    }
+    if (!user.isActive) {
+      res.status(403).json({ detail: 'Account disabled' });
+      return;
+    }
     res.json(makeTokenPair(user.id));
   } catch (err) {
     console.error('[Login]', err);

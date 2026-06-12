@@ -33,6 +33,7 @@ model Trip {
   phonePlacement String?   @map("phone_placement") @db.VarChar(30)
   status         String    @default("pending") @db.VarChar(20)
   rawDataPath    String?   @map("raw_data_path")
+  distanceKm     Float?    @map("distance_km")
   startedAt      DateTime? @map("started_at")
   endedAt        DateTime? @map("ended_at")
   createdAt      DateTime  @default(now()) @map("created_at")
@@ -43,7 +44,7 @@ model Trip {
   sensorSessions  SensorSession[]
 
   @@index([userId])
-  @@index([status])
+  @@index([userId, status])
   @@map("trips")
 }
 
