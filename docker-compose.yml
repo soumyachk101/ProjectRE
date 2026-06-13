@@ -12,7 +12,7 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
       MINIO_BUCKET: ${MINIO_BUCKET:-roadsense-sensor-data}
       MINIO_SECURE: "false"
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:-ojJYtsTgD0He/E5qSmFNOlq6oSY8GL8ZHeZNxSvYGhA=}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-30d}
       OTP_MOCK_MODE: ${OTP_MOCK_MODE:-true}
