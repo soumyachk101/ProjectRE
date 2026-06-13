@@ -1,9 +1,37 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 import { AuthTokens, PocCandidate, Trip, User, QualityScore, UserStats, LeaderboardEntry, ManualReport } from '../types';
 import { useAuthStore } from '../store/auth';
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://projectre-production.up.railway.app/api/v1';
+const getBaseUrl = () => {
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  
+  // If we have a custom URL defined in .env and it's not a localhost/loopback address, use it
+  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+    return envUrl;
+  }
+
+  // Fallback / auto-detection for development environments
+  if (__DEV__) {
+    const hostUri = Constants.expoConfig?.hostUri; // e.g. "192.168.1.100:8081"
+    if (hostUri) {
+      const ip = hostUri.split(':')[0];
+      const port = envUrl ? (envUrl.match(/:(\d+)/)?.[1] ?? '8080') : '8080';
+      return `http://${ip}:${port}/api/v1`;
+    }
+    // Fallback if hostUri is not available
+    const port = envUrl ? (envUrl.match(/:(\d+)/)?.[1] ?? '8080') : '8080';
+    return Platform.OS === 'android' 
+      ? `http://10.0.2.2:${port}/api/v1` 
+      : `http://localhost:${port}/api/v1`;
+  }
+
+  return envUrl ?? 'https://projectre-production.up.railway.app/api/v1';
+};
+
+const BASE_URL = getBaseUrl();
 
 const client = axios.create({ baseURL: BASE_URL, timeout: 30000 });
 

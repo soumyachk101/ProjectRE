@@ -61,6 +61,7 @@ export default function HomeScreen() {
   const setNearbyEvents = useEventsStore((s) => s.setNearbyEvents);
   const nearbyEvents = useEventsStore((s) => s.nearbyEvents);
   const activeTrip = useTripStore((s) => s.activeTrip);
+  const setActiveTrip = useTripStore((s) => s.setActiveTrip);
 
   // Quantize coordinates to 3 decimal places (~110m grid) to hit query cache on minor pans
   const queryLat = parseFloat(region.latitude.toFixed(3));
